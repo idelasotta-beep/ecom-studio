@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ecom Studio IA - Generador de Banners Comerciales con IA</title>
+  <meta name="description" content="Crea banners comerciales impactantes en segundos con IA. Sube tu banner de referencia e imagen de producto y genera materiales de marketing profesionales." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            jakarta: ['"Plus Jakarta Sans"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      background-color: #0d1117;
+      color: #e6edf3;
+      font-family: 'Inter', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── GRADIENT TEXT ── */
+    .grad-text {
+      background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .grad-text-green {
+      background: linear-gradient(135deg, #34d399 0%, #06b6d4 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ── GRADIENT BACKGROUNDS ── */
+    .grad-btn {
+      background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+    }
+    .grad-btn:hover { opacity: 0.88; }
+
+    /* ── GLOW EFFECTS ── */
+    .glow-purple { box-shadow: 0 0 32px rgba(139, 92, 246, 0.35), 0 4px 16px rgba(0,0,0,0.4); }
+    .glow-card:hover { box-shadow: 0 8px 32px rgba(139, 92, 246, 0.12); }
+
+    /* ── BACKGROUNDS ── */
+    .bg-card { background-color: #161b22; }
+    .bg-card-dark { background-color: #0d1117; }
+    .bg-section { background-color: #0a0d12; }
+    .border-dim { border-color: #21262d; }
+
+    /* ── HERO RADIAL GLOW ── */
+    .hero-bg {
+      background:
+        radial-gradient(ellipse 70% 50% at 50% -10%, rgba(139,92,246,0.18) 0%, transparent 70%),
+        linear-gradient(to bottom, #0d1117, #0d1117);
+    }
+
+    /* ── GRID PATTERN ── */
+    .grid-pattern {
+      background-image:
+        linear-gradient(rgba(139,92,246,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(139,92,246,0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+
+    /* ── CARD HOVER ── */
+    .card-lift {
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+    .card-lift:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 40px rgba(139,92,246,0.14);
+      border-color: rgba(139,92,246,0.4);
+    }
+
+    /* ── POPULAR PLAN GLOW ── */
+    .plan-popular {
+      border: 1px solid rgba(139,92,246,0.6) !important;
+      box-shadow: 0 0 40px rgba(139,92,246,0.18), inset 0 0 40px rgba(139,92,246,0.03);
+    }
+
+    /* ── SHIMMER ANIMATION ── */
+    @keyframes shimmer {
+      0% { background-position: -300% 0; }
+      100% { background-position: 300% 0; }
+    }
+    .shimmer-bar {
+      background: linear-gradient(90deg, #8b5cf6 0%, #60a5fa 40%, #8b5cf6 100%);
+      background-size: 300% 100%;
+      animation: shimmer 2.5s linear infinite;
+    }
+
+    /* ── FLOAT ANIMATION ── */
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .float { animation: float 5s ease-in-out infinite; }
+
+    /* ── PULSE ANIMATION ── */
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.9); }
+    }
+    .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+
+    /* ── COUNTER BADGE ── */
+    .stat-badge {
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 12px;
+      padding: 10px 14px;
+    }
+
+    /* ── TOOL ICON ── */
+    .tool-icon {
+      width: 48px; height: 48px;
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    /* ── STEP NUMBER ── */
+    .step-num {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 800;
+      background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+      color: white;
+      flex-shrink: 0;
+    }
+
+    /* ── FAQ ── */
+    details summary::-webkit-details-marker { display: none; }
+    details[open] summary .faq-icon { transform: rotate(45deg); }
+    .faq-icon { transition: transform 0.2s ease; }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #161b22; }
+    ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #8b5cf6; }
+
+    /* ── BADGE PILL ── */
+    .badge-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      border: 1px solid #30363d;
+      background: #161b22;
+      font-size: 12px; font-weight: 500;
+      color: #a78bfa;
+    }
+
+    /* ── NAV BLUR ── */
+    .nav-blur {
+      background: rgba(13,17,23,0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    /* ── MOCKUP WINDOW ── */
+    .window-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    /* ── COMMUNITY CARD ── */
+    .community-card {
+      background: linear-gradient(135deg, rgba(139,92,246,0.08), rgba(59,130,246,0.05));
+      border: 1px solid rgba(139,92,246,0.2);
+    }
+
+    /* ── GRADIENT DIVIDER ── */
+    .grad-divider {
+      height: 1px;
+      background: linear-gradient(to right, transparent, rgba(139,92,246,0.4), transparent);
+    }
+
+    /* ── HOVER LINK ── */
+    .hover-link { color: #6b7280; transition: color 0.2s; }
+    .hover-link:hover { color: #e6edf3; }
+
+    /* Number count badge */
+    .count-circle {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+      font-size: 11px; font-weight: 700; color: white;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     NAVIGATION
+══════════════════════════════════════════════════ -->
+<nav class="fixed top-0 left-0 right-0 z-50 nav-blur border-b" style="border-color:#21262d">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+
+      <!-- Logo -->
+      <a href="#" class="flex items-center gap-2.5 no-underline">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="url(#lg-i1)"/><defs><linearGradient id="lg-i1" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse"><stop stop-color="#8b5cf6"/><stop offset="1" stop-color="#3b82f6"/></linearGradient></defs><path d="M14 3L8 13H12L7 21L18 11H14L14 3Z" fill="white"/></svg>
+        <span class="font-bold text-[17px] tracking-tight" style="color:#e6edf3">
+          Ecom Studio <span class="grad-text">IA</span>
+        </span>
+      </a>
+
+      <!-- Desktop Links -->
+      <div class="hidden md:flex items-center gap-7">
+        <a href="#features" class="hover-link text-[13px] font-medium">Características</a>
+        <a href="#how-it-works" class="hover-link text-[13px] font-medium">Cómo funciona</a>
+        <a href="#pricing" class="hover-link text-[13px] font-medium">Precios</a>
+        <a href="#faq" class="hover-link text-[13px] font-medium">FAQ</a>
+      </div>
+
+      <!-- CTAs -->
+      <div class="flex items-center gap-3">
+        <a href="login.html" class="hidden sm:block hover-link text-[13px] font-medium px-3 py-2 rounded-lg hover:bg-white/5 transition-colors">
+          Iniciar sesión
+        </a>
+        <a href="register.html" class="grad-btn text-white text-[13px] font-semibold px-4 py-2 rounded-lg transition-opacity whitespace-nowrap">
+          Empezar Gratis →
+        </a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+
+<!-- ═══════════════════════════════════════════════
+     HERO
+══════════════════════════════════════════════════ -->
+<section class="relative pt-28 pb-20 overflow-hidden hero-bg">
+  <div class="absolute inset-0 grid-pattern pointer-events-none"></div>
+
+  <!-- Blurred orbs -->
+  <div class="absolute top-24 left-1/4 w-64 h-64 rounded-full pointer-events-none" style="background:radial-gradient(circle,rgba(139,92,246,0.12),transparent 70%);filter:blur(40px)"></div>
+  <div class="absolute top-32 right-1/4 w-48 h-48 rounded-full pointer-events-none" style="background:radial-gradient(circle,rgba(59,130,246,0.1),transparent 70%);filter:blur(40px)"></div>
+
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-4xl mx-auto">
+
+      <!-- Badge -->
+      <div class="badge-pill mb-6 mx-auto">
+        <span>✨</span>
+        <span>Generador de Banners Comerciales con IA</span>
+      </div>
+
+      <!-- Headline -->
+      <h1 class="font-jakarta text-5xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[1.05] mb-6" style="color:#e6edf3">
+        Crea Banners
+        <br>
+        <span class="grad-text">Profesionales</span>
+        <br>
+        en Segundos
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="text-lg sm:text-xl leading-relaxed mb-10 max-w-2xl mx-auto" style="color:#8b949e">
+        Sube tu banner de referencia e imagen de producto. Nuestra IA analiza el estilo y genera banners de marketing profesionales para e-commerce, infoproductos y servicios.
+      </p>
+
+      <!-- CTA Buttons -->
+      <div class="flex flex-col sm:flex-row gap-4 justify-center items-center mb-10">
+        <a href="register.html" class="grad-btn glow-purple text-white font-bold px-8 py-4 rounded-xl text-[15px] transition-opacity flex items-center gap-2.5">
+          <span>⚡</span> Empezar por $19/mes
+        </a>
+        <a href="#pricing" class="text-white font-semibold px-8 py-4 rounded-xl text-[15px] flex items-center gap-2 border transition-colors" style="border-color:#30363d;background:#161b22" onmouseover="this.style.background='#21262d'" onmouseout="this.style.background='#161b22'">
+          Ver qué incluye <span>→</span>
+        </a>
+      </div>
+
+      <!-- Trust Badges -->
+      <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 mb-16 text-[13px]" style="color:#6b7280">
+        <span class="flex items-center gap-1.5"><span class="text-green-400">✓</span> Solo $19/mes — precio fijo</span>
+        <span class="flex items-center gap-1.5"><span class="text-green-400">✓</span> Uso completamente ilimitado</span>
+        <span class="flex items-center gap-1.5"><span class="text-green-400">✓</span> Cancela cuando quieras</span>
+        <span class="flex items-center gap-1.5"><span class="text-green-400">✓</span> Garantía 30 días</span>
+      </div>
+
+      <!-- App Demo Mockup -->
+      <div class="relative max-w-4xl mx-auto float">
+
+        <!-- Floating stat badges -->
+        <div class="stat-badge absolute -top-5 -left-6 hidden lg:block z-10 text-left">
+          <div class="text-2xl font-black grad-text leading-none">30s</div>
+          <div class="text-[11px] mt-1" style="color:#6b7280">Tiempo promedio</div>
+        </div>
+        <div class="stat-badge absolute -top-5 -right-6 hidden lg:block z-10 text-right">
+          <div class="text-2xl font-black text-yellow-400 leading-none">5★</div>
+          <div class="text-[11px] mt-1" style="color:#6b7280">Calidad máxima</div>
+        </div>
+        <div class="stat-badge absolute -bottom-5 left-12 hidden lg:block z-10 text-left">
+          <div class="text-[11px]" style="color:#6b7280">Usuarios activos</div>
+          <div class="text-lg font-black text-green-400 leading-none mt-0.5">+12K</div>
+        </div>
+
+        <!-- Browser Window -->
+        <div class="rounded-2xl border overflow-hidden shadow-2xl" style="border-color:#21262d;background:#161b22;box-shadow:0 32px 80px rgba(0,0,0,0.6)">
+          <!-- Window titlebar -->
+          <div class="flex items-center gap-3 px-4 py-3 border-b" style="border-color:#21262d;background:#0d1117">
+            <div class="window-dot bg-red-500"></div>
+            <div class="window-dot bg-yellow-400"></div>
+            <div class="window-dot bg-green-500"></div>
+            <div class="flex-1 rounded-md h-6 flex items-center justify-center px-3 text-[11px] mx-4" style="background:#21262d;color:#6b7280">
+              app.ecomstudio.ia/banner-generator
+            </div>
+          </div>
+
+          <!-- App Content -->
+          <div class="p-6">
+            <!-- Upload row -->
+            <div class="grid grid-cols-3 gap-4 mb-5" style="min-width:0">
+              <!-- Input 1 -->
+              <div class="rounded-xl border p-4 text-left" style="border-color:#30363d;background:#0d1117">
+                <div class="flex items-center gap-2 mb-3">
+                  <div class="step-num text-xs">1</div>
+                  <span class="text-[11px] font-semibold" style="color:#8b949e">Banner Referencia</span>
+                </div>
+                <div class="rounded-lg flex flex-col items-center justify-center py-6 border-2 border-dashed" style="border-color:#30363d">
+                  <span class="text-3xl mb-2">🖼️</span>
+                  <span class="text-[10px]" style="color:#6b7280">Subir imagen</span>
+                </div>
+              </div>
+
+              <!-- Input 2 -->
+              <div class="rounded-xl border p-4 text-left" style="border-color:#30363d;background:#0d1117">
+                <div class="flex items-center gap-2 mb-3">
+                  <div class="step-num text-xs">2</div>
+                  <span class="text-[11px] font-semibold" style="color:#8b949e">Imagen Producto</span>
+                </div>
+                <div class="rounded-lg flex flex-col items-center justify-center py-6 border-2 border-dashed" style="border-color:#30363d">
+                  <span class="text-3xl mb-2">📦</span>
+                  <span class="text-[10px]" style="color:#6b7280">Subir producto</span>
+                </div>
+              </div>
+
+              <!-- Output -->
+              <div class="rounded-xl border p-4 text-left" style="border-color:rgba(139,92,246,0.4);background:rgba(139,92,246,0.05)">
+                <div class="flex items-center gap-2 mb-3">
+                  <div class="w-7 h-7 rounded-lg flex items-center justify-center text-sm" style="background:linear-gradient(135deg,#8b5cf6,#3b82f6)">✨</div>
+                  <span class="text-[11px] font-semibold text-purple-400">Banner Generado</span>
+                </div>
+                <div class="rounded-lg flex flex-col items-center justify-center py-6" style="background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(59,130,246,0.1))">
+                  <span class="text-3xl mb-2">🎨</span>
+                  <span class="text-[10px] text-purple-400">¡Listo para descargar!</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Progress + message -->
+            <div class="rounded-xl p-4" style="background:#0d1117;border:1px solid #21262d">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-[12px] font-medium" style="color:#8b949e">Generando banner con IA...</span>
+                <span class="text-[12px] font-bold text-purple-400">87%</span>
+              </div>
+              <div class="rounded-full overflow-hidden h-2" style="background:#21262d">
+                <div class="shimmer-bar h-full rounded-full" style="width:87%"></div>
+              </div>
+              <p class="text-[10px] mt-2" style="color:#6b7280">Analizando estilo de referencia y componiendo el banner...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════
+     LOGOS / SOCIAL PROOF BAR
+══════════════════════════════════════════════════ -->
+<div class="border-y py-6" style="border-color:#21262d;background:#0a0d12">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6">
+    <p class="text-center text-[12px] mb-5 uppercase tracking-widest font-semibold" style="color:#484f58">Perfecto para todo tipo de negocios</p>
+    <div class="flex flex-wrap justify-center items-center gap-8 opacity-50">
+      <span class="text-[13px] font-semibold" style="color:#8b949e">🛍️ E-commerce</span>
+      <span class="text-[13px] font-semibold" style="color:#8b949e">📚 Infoproductos</span>
+      <span class="text-[13px] font-semibold" style="color:#8b949e">🏢 Servicios</span>
+      <span class="text-[13px] font-semibold" style="color:#8b949e">📱 Marketing Digital</span>
+      <span class="text-[13px] font-semibold" style="color:#8b949e">🎯 Agencias</span>
+      <span class="text-[13px] font-semibold" style="color:#8b949e">🔗 Dropshipping</span>
+      <span class="text-[13px] font-semibold" style="color:#8b949e">💼 Freelancers</span>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     FEATURES / TOOLS
+══════════════════════════════════════════════════ -->
+<section id="features" class="py-24 relative">
+  <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 80% 50% at 50% 100%,rgba(59,130,246,0.05),transparent)"></div>
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Header -->
+    <div class="text-center mb-16">
+      <div class="badge-pill mb-5 mx-auto">🛠️ Suite completa de herramientas</div>
+      <h2 class="font-jakarta text-4xl sm:text-5xl font-black tracking-tight mb-5" style="color:#e6edf3">
+        Todo lo que necesitas para
+        <br><span class="grad-text">crear contenido profesional</span>
+      </h2>
+      <p class="text-lg max-w-2xl mx-auto" style="color:#8b949e">
+        Una plataforma con todas las herramientas de marketing que tu negocio necesita, potenciadas con IA avanzada.
+      </p>
+    </div>
+
+    <!-- Tools Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+
+      <!-- Banner Generator -->
+      <div class="card-lift glow-card bg-card rounded-2xl p-6 border border-dim">
+        <div class="tool-icon mb-5" style="background:rgba(139,92,246,0.12)">
+          <span>🎨</span>
+        </div>
+        <h3 class="font-bold text-[17px] mb-2" style="color:#e6edf3">Generador de Banners</h3>
+        <p class="text-[13px] leading-relaxed mb-5" style="color:#8b949e">
+          Crea banners comerciales que paran el scroll en redes sociales. La IA avanzada analiza tu referencia y replica el estilo perfectamente con tu producto.
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <span class="text-[11px] px-2.5 py-1 rounded-full font-medium" style="background:rgba(139,92,246,0.1);color:#a78bfa;border:1px solid rgba(139,92,246,0.2)">Facebook Ads</span>
+          <span class="text-[11px] px-2.5 py-1 rounded-full font-medium" style="background:rgba(139,92,246,0.1);color:#a78bfa;border:1px solid rgba(139,92,246,0.2)">Instagram</span>
+          <span class="text-[11px] px-2.5 py-1 rounded-full font-medium" style="background:rgba(139,92,246,0.1);color:#a78bfa;border:1px solid rgba(139,92,246,0.2)">TikTok</span>
+          <span class="text-[11px] px-2.5 py-1 rounded-full font-medium" style="background:rgba(139,92,246,0.1);color:#a78bfa;border:1px solid rgba(139,92,246,0.2)">Todos los formatos</span>
+        </div>
+      </div>
+
+      <!-- Landing Generator -->
+      <div class="card-lift glow-card bg-card rounded-2xl p-6 border border-dim">
+        <div class="tool-icon mb-5" style="background:rgba(59,130,246,0.12)">
+          <span>📄</span>
+        </div>
+        <h3 class="font-bold text-[17px] mb-2" style="color:#e6edf3">Generador de Landings</h3>
+        <p class="text-[13px] leading-relaxed mb-5" style="color:#8b949e">
+          Crea secciones de landing profesionales en menos de 10 minutos con frameworks de direct response marketing probados que convierten visitantes en compradores.
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <span class="text-[11px] px-2.5 py-1 rounded-full font-medium" style="background:rgba(59,130,246,0.1);color:#60a5fa;border:1px solid rgba(59,130,246,0.2)">10 secciones</span>
+          <span class="text-[11px] px-2.5 py-1 rounded-full font-medium" style="background:rgba(59,130,246,0.1);color:#60a5fa;border:1px solid rgba(59,130,246,0.2)">Direct Response</span>
+          <span class="text-[11px] px-2.5 py-1 rounded-full font-medium" style="background:rgba(59,130,246,0.1);color:#60a5fa;border:1px solid rgba(59,130,246,0.2)">Alta conversión</span>
+        </div>
+      </div>
+
+      <!-- Logo Generator -->
+      <div class="card-lift glow-card bg-card rounded-2xl p-6 border border-dim">
+        <div class="tool-icon mb-5" style="background:rgba(234,179,8,0.12)">
+          <span>⭐</span>
+        </div>
+        <h3 class="font-bold text-[17px] mb-2" style="color:#e6edf3">Generador de Logos</h3>
+        <p class="text-[13px] leading-relaxed mb-5" style="color:#8b949e">
+          Crea logos profesionales para tus productos con IA. Obtén una identidad visual impactante en segundos, sin necesitar un diseñador.
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <span class="text-[11px] px-2.5 py-1 rounded-full font-medium" style="background:rgba(234,179,8,0.1);color:#fbbf24;border:1px solid rgba(234,179,8,0.2)">Múltiples estilos</span>
+          <span class="text-[11px] px-2.5 py-1 rounded-full font-medium" style="background:rgba(234,179,8,0.1);color:#fbbf24;border:1px solid rgba(234,179,8,0.2)">Alta resolución</span>
+        </div>
+      </div>
+
+      <!-- Mockup Generator -->
+      <div class="card-lift glow-card bg-card rounded-2xl p-6 border border-dim">
+        <div class="tool-icon mb-5" style="background:rgba(20,184,166,0.12)">
+          <span>📦</span>
+        </div>
+        <h3 class="font-bold text-[17px] mb-2" style="color:#e6edf3">Generador de Mockups</h3>
+        <p class="text-[13px] leading-relaxed mb-5" style="color:#8b949e">
+          Crea mockups de packaging profesionales para tus productos. Selecciona una plantilla, sube tu foto y genera imágenes de producto de nivel profesional.
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <span class="text-[11px] px-2.5 py-1 rounded-full font-medium" style="background:rgba(20,184,166,0.1);color:#2dd4bf;border:1px solid rgba(20,184,166,0.2)">Packaging</span>
+          <span class="text-[11px] px-2.5 py-1 rounded-full font-medium" style="background:rgba(20,184,166,0.1);color:#2dd4bf;border:1px solid rgba(20,184,166,0.2)">Vista 3D</span>
+          <span class="text-[11px] px-2.5 py-1 rounded-full font-medium" style="background:rgba(20,184,166,0.1);color:#2dd4bf;border:1px solid rgba(20,184,166,0.2)">Lifestyle</span>
+        </div>
+      </div>
+
+      <!-- Research Tools -->
+      <div class="card-lift glow-card bg-card rounded-2xl p-6 border border-dim">
+        <div class="tool-icon mb-5" style="background:rgba(249,115,22,0.12)">
+          <span>🔍</span>
+        </div>
+        <h3 class="font-bold text-[17px] mb-2" style="color:#e6edf3">Research & Ángulos de Venta</h3>
+        <p class="text-[13px] leading-relaxed mb-5" style="color:#8b949e">
+          Genera investigación profunda de avatar y ángulos de venta ganadores. Capta la atención con mensajes que conectan directamente con el dolor del cliente.
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <span class="text-[11px] px-2.5 py-1 rounded-full font-medium" style="background:rgba(249,115,22,0.1);color:#fb923c;border:1px solid rgba(249,115,22,0.2)">Avatar research</span>
+          <span class="text-[11px] px-2.5 py-1 rounded-full font-medium" style="background:rgba(249,115,22,0.1);color:#fb923c;border:1px solid rgba(249,115,22,0.2)">Copywriting IA</span>
+          <span class="text-[11px] px-2.5 py-1 rounded-full font-medium" style="background:rgba(249,115,22,0.1);color:#fb923c;border:1px solid rgba(249,115,22,0.2)">Ad Intelligence</span>
+        </div>
+      </div>
+
+      <!-- Financial Analysis -->
+      <div class="card-lift glow-card bg-card rounded-2xl p-6 border border-dim">
+        <div class="tool-icon mb-5" style="background:rgba(34,197,94,0.12)">
+          <span>💰</span>
+        </div>
+        <h3 class="font-bold text-[17px] mb-2" style="color:#e6edf3">Análisis Financiero</h3>
+        <p class="text-[13px] leading-relaxed mb-5" style="color:#8b949e">
+          Calcula los precios de venta óptimos para tus productos. Maximiza tus márgenes con análisis inteligente que considera costos, competencia y mercado.
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <span class="text-[11px] px-2.5 py-1 rounded-full font-medium" style="background:rgba(34,197,94,0.1);color:#4ade80;border:1px solid rgba(34,197,94,0.2)">Precio óptimo</span>
+          <span class="text-[11px] px-2.5 py-1 rounded-full font-medium" style="background:rgba(34,197,94,0.1);color:#4ade80;border:1px solid rgba(34,197,94,0.2)">Margen máximo</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- More tools banner -->
+    <div class="mt-6 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 border" style="background:rgba(139,92,246,0.05);border-color:rgba(139,92,246,0.2)">
+      <div class="flex items-center gap-3">
+        <span class="text-2xl">🔗</span>
+        <div>
+          <p class="font-semibold text-[14px]" style="color:#e6edf3">Y muchas más herramientas</p>
+          <p class="text-[12px]" style="color:#6b7280">Google Ads, TikTok Shop, Galería comunidad y más herramientas</p>
+        </div>
+      </div>
+      <a href="#" class="grad-btn text-white font-semibold px-5 py-2.5 rounded-xl text-[13px] whitespace-nowrap transition-opacity">
+        Ver todo →
+      </a>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════
+     HOW IT WORKS
+══════════════════════════════════════════════════ -->
+<section id="how-it-works" class="py-24 bg-section">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Header -->
+    <div class="text-center mb-16">
+      <div class="badge-pill mb-5 mx-auto">⚡ Simple y ultrarrápido</div>
+      <h2 class="font-jakarta text-4xl sm:text-5xl font-black tracking-tight mb-5" style="color:#e6edf3">
+        Banners profesionales
+        <br><span class="grad-text">en 4 simples pasos</span>
+      </h2>
+      <p class="text-lg max-w-xl mx-auto" style="color:#8b949e">
+        Sin habilidades de diseño. Sin esperar diseñadores. Solo sube tus imágenes y deja que la magia ocurra.
+      </p>
+    </div>
+
+    <!-- Steps Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-14">
+
+      <!-- Step 1 -->
+      <div class="bg-card rounded-2xl p-6 border border-dim relative">
+        <div class="text-[10px] font-black uppercase tracking-widest mb-4 text-purple-400">Paso 01</div>
+        <div class="text-4xl mb-4">📁</div>
+        <h3 class="font-bold text-[16px] mb-2" style="color:#e6edf3">Sube tu referencia</h3>
+        <p class="text-[13px] leading-relaxed" style="color:#6b7280">
+          Sube un banner que te guste. La IA analizará el estilo y lo replicará al detalle con tu producto.
+        </p>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="bg-card rounded-2xl p-6 border border-dim">
+        <div class="text-[10px] font-black uppercase tracking-widest mb-4 text-purple-400">Paso 02</div>
+        <div class="text-4xl mb-4">📸</div>
+        <h3 class="font-bold text-[16px] mb-2" style="color:#e6edf3">Agrega tu producto</h3>
+        <p class="text-[13px] leading-relaxed" style="color:#6b7280">
+          Sube la foto de tu producto. La IA lo integrará perfectamente en el diseño del banner.
+        </p>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="bg-card rounded-2xl p-6 border border-dim">
+        <div class="text-[10px] font-black uppercase tracking-widest mb-4 text-purple-400">Paso 03</div>
+        <div class="text-4xl mb-4">✍️</div>
+        <h3 class="font-bold text-[16px] mb-2" style="color:#e6edf3">Define el mensaje</h3>
+        <p class="text-[13px] leading-relaxed" style="color:#6b7280">
+          Indica el copy, call to action y detalles en lenguaje natural. Sin tecnicismos.
+        </p>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="rounded-2xl p-6 border relative" style="background:rgba(34,197,94,0.05);border-color:rgba(34,197,94,0.25)">
+        <div class="text-[10px] font-black uppercase tracking-widest mb-4 text-green-400">Paso 04</div>
+        <div class="text-4xl mb-4">✅</div>
+        <h3 class="font-bold text-[16px] mb-2" style="color:#e6edf3">¡Descarga y usa!</h3>
+        <p class="text-[13px] leading-relaxed" style="color:#6b7280">
+          En segundos tienes tu banner en calidad 2K. Descárgalo y úsalo en tus campañas publicitarias.
+        </p>
+      </div>
+
+    </div>
+
+    <!-- Landing sections showcase -->
+    <div class="rounded-2xl border overflow-hidden" style="border-color:#21262d;background:#161b22">
+      <div class="p-6 border-b" style="border-color:#21262d">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-bold text-[16px] mb-1" style="color:#e6edf3">10 tipos de sección para tu landing</h3>
+            <p class="text-[13px]" style="color:#6b7280">Estructuras probadas de direct response marketing para convertir</p>
+          </div>
+          <a href="#" class="grad-btn text-white font-semibold px-4 py-2 rounded-xl text-[12px] transition-opacity hidden sm:block">Ver demo →</a>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-5 divide-x divide-y" style="border-color:#21262d">
+        <div class="p-4 text-center hover:bg-white/[0.02] transition-colors cursor-pointer">
+          <div class="text-xl mb-1">🦸</div>
+          <p class="text-[11px] font-semibold" style="color:#8b949e">Hero</p>
+        </div>
+        <div class="p-4 text-center hover:bg-white/[0.02] transition-colors cursor-pointer">
+          <div class="text-xl mb-1">🎁</div>
+          <p class="text-[11px] font-semibold" style="color:#8b949e">Oferta</p>
+        </div>
+        <div class="p-4 text-center hover:bg-white/[0.02] transition-colors cursor-pointer">
+          <div class="text-xl mb-1">⚡</div>
+          <p class="text-[11px] font-semibold" style="color:#8b949e">Antes/Después</p>
+        </div>
+        <div class="p-4 text-center hover:bg-white/[0.02] transition-colors cursor-pointer">
+          <div class="text-xl mb-1">✨</div>
+          <p class="text-[11px] font-semibold" style="color:#8b949e">Beneficios</p>
+        </div>
+        <div class="p-4 text-center hover:bg-white/[0.02] transition-colors cursor-pointer">
+          <div class="text-xl mb-1">📊</div>
+          <p class="text-[11px] font-semibold" style="color:#8b949e">Comparativa</p>
+        </div>
+        <div class="p-4 text-center hover:bg-white/[0.02] transition-colors cursor-pointer">
+          <div class="text-xl mb-1">🏆</div>
+          <p class="text-[11px] font-semibold" style="color:#8b949e">Autoridad</p>
+        </div>
+        <div class="p-4 text-center hover:bg-white/[0.02] transition-colors cursor-pointer">
+          <div class="text-xl mb-1">💬</div>
+          <p class="text-[11px] font-semibold" style="color:#8b949e">Testimonios</p>
+        </div>
+        <div class="p-4 text-center hover:bg-white/[0.02] transition-colors cursor-pointer">
+          <div class="text-xl mb-1">🗺️</div>
+          <p class="text-[11px] font-semibold" style="color:#8b949e">Cómo usar</p>
+        </div>
+        <div class="p-4 text-center hover:bg-white/[0.02] transition-colors cursor-pointer">
+          <div class="text-xl mb-1">🚚</div>
+          <p class="text-[11px] font-semibold" style="color:#8b949e">Logística</p>
+        </div>
+        <div class="p-4 text-center hover:bg-white/[0.02] transition-colors cursor-pointer">
+          <div class="text-xl mb-1">❓</div>
+          <p class="text-[11px] font-semibold" style="color:#8b949e">FAQ</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════
+     PRICING
+══════════════════════════════════════════════════ -->
+<section id="pricing" class="py-24 relative">
+  <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 60% 50% at 50% 50%,rgba(139,92,246,0.08),transparent)"></div>
+  <div class="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Header -->
+    <div class="text-center mb-14">
+      <div class="badge-pill mb-5 mx-auto">💎 Precio simple y justo</div>
+      <h2 class="font-jakarta text-4xl sm:text-5xl font-black tracking-tight mb-5" style="color:#e6edf3">
+        Un solo precio.<br>
+        <span class="grad-text">Uso completamente ilimitado.</span>
+      </h2>
+      <p class="text-lg max-w-2xl mx-auto" style="color:#8b949e">
+        Conecta tus propias APIs de IA y genera todo lo que necesites sin pagar por token. Nosotros ponemos las herramientas, tú pones las keys. <strong style="color:#c9d1d9">Precio fijo, sin sorpresas.</strong>
+      </p>
+    </div>
+
+    <!-- Why this model banner -->
+    <div class="rounded-2xl border mb-10 p-5 sm:p-6 grid grid-cols-1 sm:grid-cols-3 gap-4" style="background:rgba(139,92,246,0.06);border-color:rgba(139,92,246,0.2)">
+      <div class="flex items-start gap-3">
+        <span class="text-2xl flex-shrink-0">🔑</span>
+        <div>
+          <p class="font-bold text-[14px] mb-1" style="color:#e6edf3">Tus APIs, tu control</p>
+          <p class="text-[12px] leading-relaxed" style="color:#8b949e">Usas tus propias keys de OpenAI, Claude, Gemini o Kie.ai. Cada token que consumes va directo a tu cuenta, sin intermediarios.</p>
+        </div>
+      </div>
+      <div class="flex items-start gap-3">
+        <span class="text-2xl flex-shrink-0">∞</span>
+        <div>
+          <p class="font-bold text-[14px] mb-1" style="color:#e6edf3">Sin límite de generaciones</p>
+          <p class="text-[12px] leading-relaxed" style="color:#8b949e">Genera 1 investigación o 1.000. No hay cuotas ni paquetes adicionales que comprar.</p>
+        </div>
+      </div>
+      <div class="flex items-start gap-3">
+        <span class="text-2xl flex-shrink-0">📊</span>
+        <div>
+          <p class="font-bold text-[14px] mb-1" style="color:#e6edf3">Costo predecible</p>
+          <p class="text-[12px] leading-relaxed" style="color:#8b949e">Sabes exactamente cuánto pagas cada mes. Sin factura sorpresa ni cargo variable según el uso.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main plan card -->
+    <div class="max-w-md mx-auto mb-10">
+      <div class="plan-popular rounded-2xl p-8 flex flex-col relative" style="background:#161b22">
+        <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 grad-btn px-4 py-1 rounded-full text-[11px] font-black text-white tracking-wider uppercase whitespace-nowrap">
+          ⚡ Plan Único
+        </div>
+        <div class="text-center mb-8 mt-2">
+          <p class="text-[12px] font-semibold uppercase tracking-wider mb-4 text-purple-400">Acceso Completo</p>
+          <div class="flex items-end justify-center gap-2 mb-2">
+            <span class="text-6xl font-black" style="color:#e6edf3">$19</span>
+            <span class="pb-3 text-[16px]" style="color:#6b7280">/ mes</span>
+          </div>
+          <p class="text-[13px]" style="color:#6b7280">Facturación mensual · Cancela cuando quieras</p>
+        </div>
+        <a href="register.html" class="grad-btn block w-full text-center py-3.5 rounded-xl font-bold text-[15px] text-white mb-8 transition-opacity">
+          Empezar ahora →
+        </a>
+        <ul class="space-y-3.5">
+          <li class="flex items-center gap-3 text-[13px]" style="color:#c9d1d9"><span class="text-green-400 font-bold text-sm">✓</span> <strong style="color:#e6edf3">Todas las herramientas</strong> desbloqueadas</li>
+          <li class="flex items-center gap-3 text-[13px]" style="color:#c9d1d9"><span class="text-green-400 font-bold text-sm">✓</span> <strong style="color:#e6edf3">Uso ilimitado</strong> — sin cuotas</li>
+          <li class="flex items-center gap-3 text-[13px]" style="color:#c9d1d9"><span class="text-green-400 font-bold text-sm">✓</span> Conecta OpenAI, Claude, Gemini y Kie.ai</li>
+          <li class="flex items-center gap-3 text-[13px]" style="color:#c9d1d9"><span class="text-green-400 font-bold text-sm">✓</span> Investigación de producto con IA</li>
+          <li class="flex items-center gap-3 text-[13px]" style="color:#c9d1d9"><span class="text-green-400 font-bold text-sm">✓</span> Galería de la comunidad</li>
+          <li class="flex items-center gap-3 text-[13px]" style="color:#c9d1d9"><span class="text-green-400 font-bold text-sm">✓</span> Generador de anuncios y landings</li>
+          <li class="flex items-center gap-3 text-[13px]" style="color:#c9d1d9"><span class="text-green-400 font-bold text-sm">✓</span> Historial completo de generaciones</li>
+          <li class="flex items-center gap-3 text-[13px]" style="color:#c9d1d9"><span class="text-purple-400 font-bold text-sm">✓</span> Soporte prioritario</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Comparison table -->
+    <div class="mb-10">
+      <p class="text-center text-[13px] font-semibold uppercase tracking-wider mb-5" style="color:#6b7280">Ecom Studio IA vs. plataformas de pago por token</p>
+      <div class="overflow-x-auto">
+      <div class="rounded-2xl border overflow-hidden" style="border-color:#21262d;min-width:380px">
+        <div class="grid grid-cols-3 text-[12px] font-bold uppercase tracking-wider" style="background:#161b22;color:#6b7280">
+          <div class="p-4"></div>
+          <div class="p-4 text-center" style="color:#a78bfa">Ecom Studio IA</div>
+          <div class="p-4 text-center">Otras plataformas</div>
+        </div>
+        <div class="divide-y" style="border-color:#21262d">
+          <div class="grid grid-cols-3 text-[13px] py-3.5 px-4 items-center" style="background:#0d1117">
+            <span style="color:#c9d1d9">Costo mensual fijo</span>
+            <span class="text-center text-green-400 font-bold">$19</span>
+            <span class="text-center" style="color:#6b7280">$49–$299+</span>
+          </div>
+          <div class="grid grid-cols-3 text-[13px] py-3.5 px-4 items-center">
+            <span style="color:#c9d1d9">Costo por generación</span>
+            <span class="text-center text-green-400 font-bold">$0.00</span>
+            <span class="text-center" style="color:#6b7280">$0.25–$2.00</span>
+          </div>
+          <div class="grid grid-cols-3 text-[13px] py-3.5 px-4 items-center" style="background:#0d1117">
+            <span style="color:#c9d1d9">Límite de generaciones</span>
+            <span class="text-center text-green-400 font-bold">Ilimitado ∞</span>
+            <span class="text-center" style="color:#6b7280">50–500/mes</span>
+          </div>
+          <div class="grid grid-cols-3 text-[13px] py-3.5 px-4 items-center">
+            <span style="color:#c9d1d9">Eliges el modelo de IA</span>
+            <span class="text-center text-green-400 font-bold">✓</span>
+            <span class="text-center" style="color:#ef4444">✗</span>
+          </div>
+          <div class="grid grid-cols-3 text-[13px] py-3.5 px-4 items-center" style="background:#0d1117">
+            <span style="color:#c9d1d9">Factura predecible</span>
+            <span class="text-center text-green-400 font-bold">Siempre $19</span>
+            <span class="text-center" style="color:#6b7280">Variable</span>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
+
+    <!-- Guarantee -->
+    <div class="rounded-2xl border p-6 max-w-2xl mx-auto flex items-center gap-5" style="background:rgba(34,197,94,0.04);border-color:rgba(34,197,94,0.2)">
+      <div class="text-5xl flex-shrink-0">🛡️</div>
+      <div>
+        <p class="font-bold text-[15px] mb-1" style="color:#e6edf3">Garantía de devolución de 30 días</p>
+        <p class="text-[13px] leading-relaxed" style="color:#8b949e">
+          Si no estás satisfecho en los primeros 30 días, te reembolsamos el 100% sin preguntas. Sin letras pequeñas.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════
+     TESTIMONIALS
+══════════════════════════════════════════════════ -->
+<section class="py-24 bg-section">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Header -->
+    <div class="text-center mb-14">
+      <div class="badge-pill mb-5 mx-auto">💬 Testimonios reales</div>
+      <h2 class="font-jakarta text-4xl sm:text-5xl font-black tracking-tight mb-5" style="color:#e6edf3">
+        Amado por <span class="grad-text">emprendedores</span> como tú
+      </h2>
+      <p class="text-lg max-w-xl mx-auto" style="color:#8b949e">
+        Descubre cómo Ecom Studio IA está transformando la manera en que los negocios crean contenido de marketing.
+      </p>
+    </div>
+
+    <!-- Testimonials Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+
+      <div class="bg-card border border-dim rounded-2xl p-6 card-lift">
+        <div class="flex gap-0.5 mb-4 text-yellow-400 text-sm">★★★★★</div>
+        <p class="text-[14px] leading-relaxed mb-6" style="color:#c9d1d9">
+          "Increíble herramienta. Antes tardaba 2 horas haciendo banners en Canva. Ahora los genero en menos de un minuto con una calidad brutal. Vale cada centavo."
+        </p>
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0" style="background:linear-gradient(135deg,#8b5cf6,#3b82f6)">M</div>
+          <div>
+            <p class="font-semibold text-[13px]" style="color:#e6edf3">María García</p>
+            <p class="text-[12px]" style="color:#6b7280">Tienda de ropa online · España</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-card border border-dim rounded-2xl p-6 card-lift">
+        <div class="flex gap-0.5 mb-4 text-yellow-400 text-sm">★★★★★</div>
+        <p class="text-[14px] leading-relaxed mb-6" style="color:#c9d1d9">
+          "La función de landing pages cambia todo. Creo secciones completas para mis infoproductos en minutos con estructuras que convierten. Ya no necesito contratar copywriters."
+        </p>
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0" style="background:linear-gradient(135deg,#f97316,#ec4899)">C</div>
+          <div>
+            <p class="font-semibold text-[13px]" style="color:#e6edf3">Carlos Mendoza</p>
+            <p class="text-[12px]" style="color:#6b7280">Creador de infoproductos · México</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-card border border-dim rounded-2xl p-6 card-lift">
+        <div class="flex gap-0.5 mb-4 text-yellow-400 text-sm">★★★★★</div>
+        <p class="text-[14px] leading-relaxed mb-6" style="color:#c9d1d9">
+          "Como agencia usamos Ecom Studio IA para todos nuestros clientes. Entregamos proyectos 5x más rápido con mayor calidad. La ROI para nuestros clientes es brutal."
+        </p>
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0" style="background:linear-gradient(135deg,#14b8a6,#22c55e)">A</div>
+          <div>
+            <p class="font-semibold text-[13px]" style="color:#e6edf3">Ana Rodríguez</p>
+            <p class="text-[12px]" style="color:#6b7280">Directora de Agencia Digital · Colombia</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Second row of testimonials -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+      <div class="bg-card border border-dim rounded-2xl p-6 card-lift">
+        <div class="flex gap-0.5 mb-4 text-yellow-400 text-sm">★★★★★</div>
+        <p class="text-[14px] leading-relaxed mb-6" style="color:#c9d1d9">
+          "El generador de mockups es una locura. Antes pagaba $50 por sesión de fotos para cada producto. Ahora con una sola foto genero 10 mockups profesionales. Ahorro enorme."
+        </p>
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">J</div>
+          <div>
+            <p class="font-semibold text-[13px]" style="color:#e6edf3">Javier López</p>
+            <p class="text-[12px]" style="color:#6b7280">E-commerce de suplementos · Argentina</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="community-card rounded-2xl p-6">
+        <div class="flex items-start gap-4">
+          <div class="text-4xl flex-shrink-0">🌐</div>
+          <div>
+            <h3 class="font-bold text-[16px] mb-2" style="color:#e6edf3">Comunidad activa de creadores</h3>
+            <p class="text-[13px] leading-relaxed mb-4" style="color:#8b949e">
+              Comparte tus banners con la comunidad. Inspírate con los diseños de otros usuarios y descubre nuevas tendencias de marketing.
+            </p>
+            <div class="flex items-center gap-4 text-[13px]">
+              <span class="flex items-center gap-1.5 text-purple-400"><span>🎨</span> Banners compartidos diariamente</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════
+     FAQ
+══════════════════════════════════════════════════ -->
+<section id="faq" class="py-24">
+  <div class="max-w-2xl mx-auto px-4 sm:px-6">
+
+    <!-- Header -->
+    <div class="text-center mb-12">
+      <h2 class="font-jakarta text-4xl sm:text-5xl font-black tracking-tight mb-4" style="color:#e6edf3">
+        Preguntas <span class="grad-text">frecuentes</span>
+      </h2>
+      <p style="color:#8b949e">Todo lo que necesitas saber antes de empezar.</p>
+    </div>
+
+    <!-- FAQ Items -->
+    <div class="space-y-3">
+
+      <details class="bg-card border border-dim rounded-xl overflow-hidden group">
+        <summary class="flex items-center justify-between p-5 cursor-pointer font-semibold text-[14px]" style="color:#e6edf3">
+          ¿Cómo funciona el modelo de precio fijo?
+          <span class="faq-icon text-gray-500 text-xl font-light ml-4 flex-shrink-0">+</span>
+        </summary>
+        <div class="px-5 pb-5 text-[13px] leading-relaxed" style="color:#8b949e">
+          Pagas $19 al mes y tienes acceso ilimitado a todas las herramientas de la plataforma. El costo de los tokens de IA corre por tu cuenta usando tus propias API keys (OpenAI, Claude, Gemini, Kie.ai), lo que significa que pagas directamente al proveedor de IA al precio más bajo posible, sin margen intermedio.
+        </div>
+      </details>
+
+      <details class="bg-card border border-dim rounded-xl overflow-hidden group">
+        <summary class="flex items-center justify-between p-5 cursor-pointer font-semibold text-[14px]" style="color:#e6edf3">
+          ¿Puedo cancelar mi suscripción en cualquier momento?
+          <span class="faq-icon text-gray-500 text-xl font-light ml-4 flex-shrink-0">+</span>
+        </summary>
+        <div class="px-5 pb-5 text-[13px] leading-relaxed" style="color:#8b949e">
+          Sí, puedes cancelar en cualquier momento desde la configuración de tu cuenta. No hay penalizaciones, contratos mínimos ni cargos adicionales por cancelar.
+        </div>
+      </details>
+
+      <details class="bg-card border border-dim rounded-xl overflow-hidden group">
+        <summary class="flex items-center justify-between p-5 cursor-pointer font-semibold text-[14px]" style="color:#e6edf3">
+          ¿Qué calidad tienen los banners generados?
+          <span class="faq-icon text-gray-500 text-xl font-light ml-4 flex-shrink-0">+</span>
+        </summary>
+        <div class="px-5 pb-5 text-[13px] leading-relaxed" style="color:#8b949e">
+          Los banners se generan en formato PNG de alta calidad. El plan Trial incluye resolución 1080p, mientras que todos los planes de pago incluyen calidad 2K (2048px), ideal para campañas publicitarias profesionales en cualquier plataforma.
+        </div>
+      </details>
+
+      <details class="bg-card border border-dim rounded-xl overflow-hidden group">
+        <summary class="flex items-center justify-between p-5 cursor-pointer font-semibold text-[14px]" style="color:#e6edf3">
+          ¿Necesito saber diseño para usar la plataforma?
+          <span class="faq-icon text-gray-500 text-xl font-light ml-4 flex-shrink-0">+</span>
+        </summary>
+        <div class="px-5 pb-5 text-[13px] leading-relaxed" style="color:#8b949e">
+          No necesitas ninguna habilidad de diseño. La plataforma está diseñada para que cualquier emprendedor, sin importar su nivel técnico, pueda crear banners profesionales en cuestión de segundos usando lenguaje natural.
+        </div>
+      </details>
+
+      <details class="bg-card border border-dim rounded-xl overflow-hidden group">
+        <summary class="flex items-center justify-between p-5 cursor-pointer font-semibold text-[14px]" style="color:#e6edf3">
+          ¿Para qué tipos de negocio funciona?
+          <span class="faq-icon text-gray-500 text-xl font-light ml-4 flex-shrink-0">+</span>
+        </summary>
+        <div class="px-5 pb-5 text-[13px] leading-relaxed" style="color:#8b949e">
+          Ecom Studio IA está diseñado para e-commerce, infoproductos, servicios, agencias digitales y freelancers. Si tu negocio necesita contenido de marketing visual, esta plataforma es para ti, independientemente del sector o tamaño.
+        </div>
+      </details>
+
+      <details class="bg-card border border-dim rounded-xl overflow-hidden group">
+        <summary class="flex items-center justify-between p-5 cursor-pointer font-semibold text-[14px]" style="color:#e6edf3">
+          ¿Existe una garantía de devolución de dinero?
+          <span class="faq-icon text-gray-500 text-xl font-light ml-4 flex-shrink-0">+</span>
+        </summary>
+        <div class="px-5 pb-5 text-[13px] leading-relaxed" style="color:#8b949e">
+          Sí. Ofrecemos una garantía de devolución de 30 días. Si no estás completamente satisfecho con la plataforma en los primeros 30 días, te reembolsamos el 100% sin preguntas. Esta garantía aplica para el primer pago.
+        </div>
+      </details>
+
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════
+     FINAL CTA
+══════════════════════════════════════════════════ -->
+<section class="py-24 relative overflow-hidden bg-section">
+  <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 70% 70% at 50% 50%,rgba(139,92,246,0.12),transparent)"></div>
+  <div class="absolute top-0 left-0 right-0 grad-divider"></div>
+
+  <div class="relative max-w-4xl mx-auto px-4 sm:px-6 text-center">
+    <div class="rounded-3xl border p-12 sm:p-16 shadow-2xl" style="background:#161b22;border-color:rgba(139,92,246,0.25);box-shadow:0 0 80px rgba(139,92,246,0.12)">
+
+      <div class="text-6xl mb-6 inline-block">🧙</div>
+
+      <h2 class="font-jakarta text-4xl sm:text-5xl font-black tracking-tight mb-5" style="color:#e6edf3">
+        Empieza a crear banners
+        <br><span class="grad-text">profesionales hoy mismo</span>
+      </h2>
+      <p class="text-lg mb-10 max-w-xl mx-auto" style="color:#8b949e">
+        Únete a miles de emprendedores que ya usan Ecom Studio IA para crear contenido de marketing que genera resultados reales.
+      </p>
+
+      <div class="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+        <a href="register.html" class="grad-btn glow-purple text-white font-bold px-10 py-4 rounded-xl text-[15px] transition-opacity flex items-center justify-center gap-2.5">
+          <span>⚡</span> Empezar por $19/mes
+        </a>
+        <a href="#pricing" class="text-white font-semibold px-10 py-4 rounded-xl text-[15px] border flex items-center justify-center gap-2 transition-colors" style="border-color:#30363d" onmouseover="this.style.background='#21262d'" onmouseout="this.style.background='transparent'">
+          Ver qué incluye →
+        </a>
+      </div>
+
+      <p class="text-[13px]" style="color:#6b7280">
+        Solo $19/mes · Uso ilimitado · Cancela cuando quieras · Garantía 30 días
+      </p>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════════════ -->
+<footer class="border-t py-14" style="border-color:#21262d;background:#0d1117">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Top row -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-8 mb-10">
+
+      <!-- Brand col -->
+      <div class="col-span-2 sm:col-span-4 lg:col-span-2">
+        <div class="flex items-center gap-2.5 mb-4">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="url(#lg-i2)"/><defs><linearGradient id="lg-i2" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse"><stop stop-color="#8b5cf6"/><stop offset="1" stop-color="#3b82f6"/></linearGradient></defs><path d="M14 3L8 13H12L7 21L18 11H14L14 3Z" fill="white"/></svg>
+          <span class="font-bold text-[17px]" style="color:#e6edf3">Ecom Studio <span class="grad-text">IA</span></span>
+        </div>
+        <p class="text-[13px] leading-relaxed max-w-xs mb-5" style="color:#6b7280">
+          La plataforma de IA más completa para crear contenido de marketing profesional para e-commerce, infoproductos y servicios.
+        </p>
+        <div class="flex items-center gap-3">
+          <a href="#" class="w-9 h-9 rounded-xl border flex items-center justify-center text-base hover:bg-white/5 transition-colors" style="border-color:#30363d;color:#8b949e">𝕏</a>
+          <a href="#" class="w-9 h-9 rounded-xl border flex items-center justify-center text-base hover:bg-white/5 transition-colors" style="border-color:#30363d;color:#8b949e">in</a>
+          <a href="#" class="w-9 h-9 rounded-xl border flex items-center justify-center text-base hover:bg-white/5 transition-colors" style="border-color:#30363d;color:#8b949e">▶</a>
+        </div>
+      </div>
+
+      <!-- Product -->
+      <div>
+        <h4 class="font-semibold text-[13px] mb-4 uppercase tracking-wider" style="color:#e6edf3">Producto</h4>
+        <ul class="space-y-3">
+          <li><a href="#" class="hover-link text-[13px]">Generador de Banners</a></li>
+          <li><a href="#" class="hover-link text-[13px]">Generador de Landings</a></li>
+          <li><a href="#" class="hover-link text-[13px]">Generador de Logos</a></li>
+          <li><a href="#" class="hover-link text-[13px]">Generador de Mockups</a></li>
+          <li><a href="#" class="hover-link text-[13px]">Análisis Financiero</a></li>
+          <li><a href="#" class="hover-link text-[13px]">Ad Intelligence</a></li>
+        </ul>
+      </div>
+
+      <!-- Company -->
+      <div>
+        <h4 class="font-semibold text-[13px] mb-4 uppercase tracking-wider" style="color:#e6edf3">Empresa</h4>
+        <ul class="space-y-3">
+          <li><a href="#features" class="hover-link text-[13px]">Características</a></li>
+          <li><a href="#pricing" class="hover-link text-[13px]">Precios</a></li>
+          <li><a href="#" class="hover-link text-[13px]">Comunidad</a></li>
+          <li><a href="#" class="hover-link text-[13px]">Soporte</a></li>
+          <li><a href="#faq" class="hover-link text-[13px]">FAQ</a></li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- Divider -->
+    <div class="grad-divider mb-6"></div>
+
+    <!-- Bottom row -->
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+      <p class="text-[12px]" style="color:#484f58">© 2025 Ecom Studio IA. Todos los derechos reservados.</p>
+      <div class="flex items-center gap-5">
+        <a href="#" class="hover-link text-[12px]">Términos de Servicio</a>
+        <a href="#" class="hover-link text-[12px]">Política de Privacidad</a>
+        <a href="#" class="hover-link text-[12px]">Política de Reembolso</a>
+      </div>
+    </div>
+
+  </div>
+</footer>
+
+<!-- ═══════════════════════════════════════════════
+     SMOOTH SCROLL + FAQ INTERACTIVE
+══════════════════════════════════════════════════ -->
+<script>
+  // Smooth scroll for anchor links
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const id = a.getAttribute('href');
+      if (id === '#') return;
+      const el = document.querySelector(id);
+      if (el) {
+        e.preventDefault();
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+
+  // FAQ rotate icon
+  document.querySelectorAll('details').forEach(d => {
+    d.addEventListener('toggle', () => {
+      const icon = d.querySelector('.faq-icon');
+      if (icon) icon.textContent = d.open ? '×' : '+';
+    });
+  });
+
+  // Navbar shadow on scroll
+  const nav = document.querySelector('nav');
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 10) {
+      nav.style.borderBottomColor = '#30363d';
+    } else {
+      nav.style.borderBottomColor = '#21262d';
+    }
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+server/node_modules/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Database (flat-file) and backups
+server/ecommagic.json
+server/ecommagic.json.bak
+server/ecommagic.json.tmp
+
+# User-uploaded media
+server/ads/
+server/ad-templates/
+server/meta-ads/
+server/audios/
+server/tmp-uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Claude Code (custom skills are project-level — keep these out of public repos if private)
+.claude/
+
+# Build artifacts
+dist/
+build/
