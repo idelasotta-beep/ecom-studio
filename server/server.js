@@ -38,7 +38,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Without this, the backend folder, DB file, secrets, and config are all exposed.
 const BLOCKED_PATTERN = /^\/(?:server\b|\.|node_modules\b)|\.(?:env|bak|log|json|lock|md)$/i;
 const STATIC_ALLOWLIST = new Set([
-  '/index.html', '/login.html', '/register.html', '/dashboard.html', '/admin.html', '/ebooks.html',
+  '/index.html', '/login.html', '/register.html', '/dashboard.html', '/admin.html',
 ]);
 app.use((req, res, next) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/ads') ||

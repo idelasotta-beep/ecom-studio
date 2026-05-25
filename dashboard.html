@@ -3113,7 +3113,7 @@ html.light .api-input { background:#f8fafc; }
     <span class="s-label">Audios</span>
     <span class="s-right"><span class="badge-soon">Pronto</span></span>
   </button>
-  <button class="s-item" onclick="location.href='ebooks.html'">
+  <button class="s-item" onclick="showSection('ebooks',this)">
     <span class="s-icon">📚</span>
     <span class="s-label">Ebooks</span>
     <span class="s-right"><span class="badge-new">Nuevo</span></span>
@@ -5091,6 +5091,205 @@ html.light .api-input { background:#f8fafc; }
 
         <!-- Results -->
         <div id="aud-results-section"></div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       EBOOKS (lead-magnet PDF generator)
+  ═══════════════════════════════════════ -->
+  <style>
+    #section-ebooks .eb-pill { display:inline-block; padding:3px 10px; background:rgba(139,92,246,.12); color:#a78bfa; font-size:10px; font-weight:600; border-radius:999px; text-transform:uppercase; letter-spacing:1.5px; }
+    #section-ebooks .eb-pill.eb-pill-warn { background:rgba(248,113,113,.12); color:#f87171; }
+    #section-ebooks h2.eb-h2 { font-size:20px; font-weight:700; margin:10px 0 4px; color:var(--text); }
+    #section-ebooks .eb-sub { font-size:13px; color:var(--muted); margin-bottom:18px; }
+    #section-ebooks .eb-field { width:100%; padding:11px 14px; background:var(--card2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:13px; outline:none; transition:border-color .2s; font-family:inherit; }
+    #section-ebooks .eb-field:focus { border-color:#8b5cf6; }
+    #section-ebooks .eb-field:disabled { opacity:.6; cursor:not-allowed; }
+    #section-ebooks label.eb-label { display:block; font-size:12px; font-weight:600; color:var(--text2); margin-bottom:6px; }
+    #section-ebooks .eb-row2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    #section-ebooks .eb-pages-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+    #section-ebooks .eb-pages-btn { padding:11px; background:var(--card2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:14px; font-weight:600; cursor:pointer; transition:all .2s; font-family:inherit; }
+    #section-ebooks .eb-pages-btn:hover { border-color:#8b5cf6; }
+    #section-ebooks .eb-pages-btn.active { border-color:#8b5cf6; background:rgba(139,92,246,.08); }
+    #section-ebooks .eb-hint { font-size:11px; color:var(--muted); margin-top:6px; }
+    #section-ebooks .eb-form-block { margin-bottom:16px; }
+    #section-ebooks .eb-form-block:last-child { margin-bottom:0; }
+    #section-ebooks .eb-gen-btn-wide { width:100%; padding:13px; background:linear-gradient(135deg,#8b5cf6,#3b82f6); color:white; border:none; border-radius:12px; font-size:14px; font-weight:600; cursor:pointer; transition:opacity .2s; }
+    #section-ebooks .eb-gen-btn-wide:hover { opacity:.88; }
+    #section-ebooks .eb-gen-btn-wide:disabled { opacity:.5; cursor:not-allowed; }
+    #section-ebooks .eb-ideas-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; }
+    #section-ebooks .eb-idea-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; cursor:pointer; transition:all .2s; }
+    #section-ebooks .eb-idea-card:hover { border-color:#8b5cf6; background:var(--card2); }
+    #section-ebooks .eb-idea-num { font-size:10px; font-weight:700; color:var(--muted); letter-spacing:1.5px; margin-bottom:8px; }
+    #section-ebooks .eb-idea-title { font-size:14px; font-weight:700; color:var(--text); margin-bottom:6px; line-height:1.3; }
+    #section-ebooks .eb-idea-subtitle { font-size:12px; color:var(--muted); margin-bottom:10px; line-height:1.4; }
+    #section-ebooks .eb-idea-synopsis { font-size:12px; color:var(--text2); margin-bottom:14px; line-height:1.5; }
+    #section-ebooks .eb-idea-caps-label { font-size:10px; font-weight:700; color:var(--muted); letter-spacing:1.5px; margin-bottom:6px; }
+    #section-ebooks .eb-idea-caps { font-size:11px; color:var(--text2); line-height:1.6; margin-bottom:14px; padding-left:16px; }
+    #section-ebooks .eb-idea-caps li { margin-bottom:2px; }
+    #section-ebooks .eb-use-btn { width:100%; padding:9px; background:linear-gradient(135deg,#8b5cf6,#3b82f6); color:white; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; }
+    #section-ebooks .eb-use-btn:hover { opacity:.88; }
+    #section-ebooks .eb-progress-row { display:flex; justify-content:space-between; font-size:12px; color:var(--text2); margin-bottom:8px; font-weight:600; }
+    #section-ebooks .eb-progress-msg { font-size:11px; color:var(--muted); margin-top:8px; }
+    #section-ebooks .eb-chapter-preview { background:var(--card2); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:10px; }
+    #section-ebooks .eb-chapter-preview img { width:100%; height:120px; object-fit:cover; border-radius:6px; margin-bottom:10px; }
+    #section-ebooks .eb-chapter-preview-num { font-size:10px; font-weight:700; color:var(--muted); letter-spacing:1.5px; }
+    #section-ebooks .eb-chapter-preview-title { font-size:14px; font-weight:700; color:var(--text); margin:4px 0 8px; }
+    #section-ebooks .eb-chapter-preview-text { font-size:12px; color:var(--text2); line-height:1.5; white-space:pre-line; }
+    #section-ebooks .eb-spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(139,92,246,.3); border-top-color:#a78bfa; border-radius:50%; animation:eb-spin .8s linear infinite; vertical-align:middle; }
+    @keyframes eb-spin { to { transform:rotate(360deg); } }
+    #section-ebooks .eb-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+    #section-ebooks .eb-download-btn { display:inline-flex; align-items:center; gap:8px; padding:11px 18px; background:linear-gradient(135deg,#8b5cf6,#3b82f6); color:white; text-decoration:none; border-radius:10px; font-size:13px; font-weight:600; }
+    #section-ebooks .eb-saved-item { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:8px; display:flex; align-items:center; gap:12px; }
+    #section-ebooks .eb-saved-thumb { width:42px; height:54px; border-radius:6px; background:var(--card2); flex-shrink:0; object-fit:cover; }
+    #section-ebooks .eb-saved-info { flex:1; min-width:0; }
+    #section-ebooks .eb-saved-title { font-size:13px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #section-ebooks .eb-saved-sub { font-size:11px; color:var(--muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #section-ebooks .eb-saved-meta { font-size:10px; color:var(--muted); margin-top:3px; }
+    #section-ebooks .eb-saved-actions { display:flex; gap:6px; flex-shrink:0; }
+    #section-ebooks .eb-mini-btn { padding:6px 10px; font-size:11px; font-weight:600; border:1px solid var(--border); border-radius:7px; background:transparent; color:var(--text2); cursor:pointer; text-decoration:none; }
+    #section-ebooks .eb-mini-btn:hover { border-color:#8b5cf6; }
+    #section-ebooks .eb-mini-btn.eb-mini-btn-primary { background:linear-gradient(135deg,#8b5cf6,#3b82f6); color:white; border-color:transparent; }
+    #section-ebooks .eb-mini-btn.eb-mini-btn-danger:hover { border-color:#ef4444; background:rgba(239,68,68,.08); }
+  </style>
+
+  <div class="content-section" id="section-ebooks">
+
+    <!-- ── List view: product grid ── -->
+    <div id="eb-list-view" style="height:100%;display:flex;flex-direction:column">
+      <div class="pr-header">
+        <div>
+          <div class="pr-title">Ebooks</div>
+          <div class="pr-subtitle">Genera ebooks lead-magnet asociados a tus productos. Selecciona un producto para empezar.</div>
+        </div>
+      </div>
+      <div class="pr-grid" id="eb-prod-grid" style="padding:18px 24px 24px">
+        <div style="grid-column:1/-1;text-align:center;padding:48px 24px;color:var(--muted);font-size:13px">
+          Cargando productos...
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Detail view: wizard de 3 pasos ── -->
+    <div id="eb-detail-view" style="display:none;flex-direction:column;height:100%;overflow:hidden">
+      <div id="eb-scroll" style="flex:1;overflow-y:auto;padding:24px">
+
+        <!-- Header -->
+        <div class="ang-detail-header">
+          <button class="ang-back-btn" onclick="ebShowList()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            Volver
+          </button>
+          <span class="ang-detail-prod" id="eb-detail-prod-name">Producto</span>
+        </div>
+
+        <!-- STEP 1: Configuración -->
+        <div id="eb-step1" class="eb-step">
+          <span class="eb-pill">PASO 1 DE 3</span>
+          <h2 class="eb-h2">Configura tu ebook</h2>
+          <p class="eb-sub">Elige el ángulo, los modelos y la extensión. Después la IA te propone 5 ideas para elegir.</p>
+
+          <div class="ang-form-card">
+            <div class="eb-form-block">
+              <label class="eb-label">Ángulo de venta</label>
+              <select id="eb-angle-select" class="eb-field" disabled><option>Carga un producto primero</option></select>
+              <div id="eb-angle-hint" class="eb-hint" style="display:none;color:#f87171"></div>
+            </div>
+
+            <div class="eb-form-block eb-row2">
+              <div>
+                <label class="eb-label">Modelo de texto</label>
+                <select id="eb-text-model" class="eb-field">
+                  <optgroup label="Claude (Anthropic)">
+                    <option value="claude-opus-4-7">Claude Opus 4.7 — mejor calidad</option>
+                    <option value="claude-sonnet-4-6" selected>Claude Sonnet 4.6 — balance recomendado</option>
+                    <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — más rápido</option>
+                  </optgroup>
+                  <optgroup label="OpenAI">
+                    <option value="gpt-4.1">GPT-4.1</option>
+                    <option value="gpt-4o">GPT-4o</option>
+                    <option value="gpt-4o-mini">GPT-4o mini</option>
+                  </optgroup>
+                  <optgroup label="Google">
+                    <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                  </optgroup>
+                  <optgroup label="Kie.ai">
+                    <option value="kie:claude-sonnet-4-5">Claude Sonnet 4.5 (Kie.ai)</option>
+                    <option value="kie:gpt-5-2">GPT-5.2 (Kie.ai)</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div>
+                <label class="eb-label">Modelo de imágenes</label>
+                <select id="eb-image-model" class="eb-field">
+                  <option value="nano_banana_2" selected>Nano Banana 2 — rápido</option>
+                  <option value="nano_banana_pro">Nano Banana Pro — mejor calidad</option>
+                  <option value="gpt_image_2">GPT Image 2 — OpenAI</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="eb-form-block">
+              <label class="eb-label">Páginas objetivo</label>
+              <div class="eb-pages-grid">
+                <button type="button" data-pages="20"  class="eb-pages-btn">20</button>
+                <button type="button" data-pages="40"  class="eb-pages-btn">40</button>
+                <button type="button" data-pages="60"  class="eb-pages-btn">60</button>
+                <button type="button" data-pages="80"  class="eb-pages-btn">80</button>
+                <button type="button" data-pages="100" class="eb-pages-btn">100</button>
+              </div>
+              <div class="eb-hint"><span id="eb-chapters-hint">5 capítulos</span> · más páginas = más tiempo y tokens</div>
+            </div>
+
+            <button class="eb-gen-btn-wide" id="eb-gen-ideas-btn" onclick="ebGenerateIdeas()" disabled>
+              <span id="eb-gen-ideas-text">Generar 5 ideas</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- STEP 2: Selección de idea -->
+        <div id="eb-step2" class="eb-step" style="display:none">
+          <span class="eb-pill">PASO 2 DE 3</span>
+          <h2 class="eb-h2">Elige una idea</h2>
+          <p class="eb-sub">Estas son 5 propuestas generadas por la IA. Selecciona la que más te convenza.</p>
+          <div id="eb-ideas-grid" class="eb-ideas-grid"></div>
+          <div style="display:flex;gap:10px;margin-top:18px">
+            <button class="ang-back-btn" onclick="ebGoToStep(1)">← Volver</button>
+            <button class="ang-back-btn" onclick="ebGenerateIdeas()">Regenerar ideas</button>
+          </div>
+        </div>
+
+        <!-- STEP 3: Generación + preview -->
+        <div id="eb-step3" class="eb-step" style="display:none">
+          <span class="eb-pill">PASO 3 DE 3</span>
+          <h2 class="eb-h2" id="eb-ebook-title"></h2>
+          <p class="eb-sub" id="eb-ebook-sub"></p>
+
+          <div class="ang-form-card">
+            <div class="eb-progress-row">
+              <span>Progreso</span>
+              <span id="eb-progress-label">0%</span>
+            </div>
+            <div class="ang-progress-bar"><div class="ang-progress-fill" id="eb-progress-fill" style="width:0%"></div></div>
+            <div id="eb-progress-msg" class="eb-progress-msg">Iniciando…</div>
+          </div>
+
+          <div id="eb-preview-area" style="margin-top:18px"></div>
+
+          <div id="eb-actions-area" class="eb-actions" style="display:none">
+            <a id="eb-download-pdf-btn" class="eb-download-btn" target="_blank">⬇ Descargar PDF</a>
+            <button class="ang-back-btn" onclick="ebNewEbook()">Generar otro</button>
+          </div>
+        </div>
+
+        <!-- Listado de ebooks del producto -->
+        <div id="eb-list-section" style="display:none;margin-top:32px">
+          <h3 style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px">Ebooks de este producto</h3>
+          <div id="eb-saved-list"></div>
+        </div>
 
       </div>
     </div>
@@ -7202,6 +7401,7 @@ function refreshCurrentSection() {
   if (_currentSection === 'logo')             logoLoad();
   if (_currentSection === 'text-to-image')    t2iLoad();
   if (_currentSection === 'copys')            cpyLoad();
+  if (_currentSection === 'ebooks')           ebLoad();
   if (_currentSection === 'testimonials')     wtsLoad();
   if (_currentSection === 'meta-spy')         msLoad();
   if (_currentSection === 'tiktok-spy')       ttsLoad();
@@ -9217,6 +9417,333 @@ async function audDelete(audioId) {
     showToast('Audio eliminado');
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   EBOOKS — lead-magnet PDF generator (3-step wizard inline)
+═══════════════════════════════════════════════════════════════ */
+const ebState = {
+  product:       null,
+  products:      [],
+  angles:        [],
+  selectedAngle: null,
+  selectedPages: null,
+  ideas:         [],
+  selectedIdea:  null,
+  ebookId:       null,
+  pollHandle:    null,
+};
+
+async function ebLoad() {
+  const data = await apiFetch('/ebooks');
+  if (!data) return;
+  ebState.products = data.products || [];
+  ebRenderGrid(ebState.products);
+}
+
+function ebRenderGrid(prods) {
+  const grid = document.getElementById('eb-prod-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  if (!prods.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px 24px;color:var(--muted);font-size:13px">No tienes productos. Crea uno en <strong style="color:var(--text2)">Investigación de Producto</strong>.</div>`;
+    return;
+  }
+  prods.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'pr-card';
+    div.onclick = () => ebOpenDetail(p.id);
+    const count = p.ebook_count || 0;
+    const ready = p.ebook_ready_count || 0;
+    const hasAngles = (p.angle_count || 0) > 0;
+    const label = count === 0
+      ? 'Sin ebooks'
+      : `${ready === count ? count : `${ready}/${count}`} ${count === 1 ? 'ebook' : 'ebooks'}`;
+    const countBadge = count > 0
+      ? `<div class="pr-card-badge">${label}</div>`
+      : `<div class="pr-card-badge" style="background:rgba(139,92,246,.12);color:#a78bfa">${label}</div>`;
+    const anglesBadge = !hasAngles
+      ? `<div class="pr-card-badge" style="background:rgba(248,113,113,.12);color:#f87171;margin-top:4px">Sin ángulos</div>`
+      : '';
+    div.innerHTML = `
+      <div class="pr-card-icon">
+        ${p.image
+          ? `<img src="${p.image}" alt="">`
+          : `<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`}
+      </div>
+      <div class="pr-card-info">
+        <div class="pr-card-name">${esc(p.name)}</div>
+        ${countBadge}
+        ${anglesBadge}
+      </div>`;
+    grid.appendChild(div);
+  });
+}
+
+async function ebOpenDetail(productId) {
+  ebState.product = ebState.products.find(p => p.id === productId);
+  if (!ebState.product) { showToast('Producto no encontrado'); return; }
+
+  document.getElementById('eb-list-view').style.display   = 'none';
+  document.getElementById('eb-detail-view').style.display = 'flex';
+  document.getElementById('eb-detail-prod-name').textContent = ebState.product.name;
+
+  // Reset wizard state for fresh product
+  ebState.angles = [];
+  ebState.selectedAngle = null;
+  ebState.selectedPages = null;
+  ebState.ideas = [];
+  ebState.selectedIdea = null;
+  ebState.ebookId = null;
+  if (ebState.pollHandle) { clearInterval(ebState.pollHandle); ebState.pollHandle = null; }
+  document.querySelectorAll('#section-ebooks .eb-pages-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('eb-chapters-hint').textContent = '5 capítulos';
+
+  // Load angles via the copys endpoint (it has the same parser)
+  const data = await apiFetch('/copys/' + productId);
+  ebState.angles = (data && data.angles) || [];
+
+  const angleSel = document.getElementById('eb-angle-select');
+  const angleHint = document.getElementById('eb-angle-hint');
+  if (ebState.angles.length === 0) {
+    angleSel.innerHTML = '<option>Este producto no tiene ángulos de venta generados</option>';
+    angleSel.disabled = true;
+    angleHint.textContent = 'Genera ángulos primero en la sección "Ángulos de Ventas".';
+    angleHint.style.display = 'block';
+  } else {
+    angleSel.disabled = false;
+    angleSel.innerHTML = ebState.angles.map(a => `<option value="${a.uid}">${a.num}. ${esc(a.title)}</option>`).join('');
+    ebState.selectedAngle = ebState.angles[0];
+    angleHint.style.display = 'none';
+  }
+
+  ebUpdateValid();
+  ebGoToStep(1);
+  ebLoadSavedList();
+  document.getElementById('eb-scroll').scrollTop = 0;
+}
+
+function ebShowList() {
+  if (ebState.pollHandle) { clearInterval(ebState.pollHandle); ebState.pollHandle = null; }
+  ebState.product = null;
+  document.getElementById('eb-list-view').style.display   = 'flex';
+  document.getElementById('eb-detail-view').style.display = 'none';
+  ebLoad();
+}
+
+function ebGoToStep(n) {
+  ['eb-step1', 'eb-step2', 'eb-step3'].forEach((id, i) => {
+    document.getElementById(id).style.display = (i + 1 === n) ? '' : 'none';
+  });
+  document.getElementById('eb-scroll').scrollTop = 0;
+}
+
+function ebUpdateValid() {
+  const ok = ebState.selectedAngle && ebState.selectedPages
+    && document.getElementById('eb-text-model').value
+    && document.getElementById('eb-image-model').value;
+  document.getElementById('eb-gen-ideas-btn').disabled = !ok;
+}
+
+function ebInitFormHooks() {
+  // Page buttons
+  document.querySelectorAll('#section-ebooks .eb-pages-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#section-ebooks .eb-pages-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      ebState.selectedPages = Number(btn.dataset.pages);
+      const chapters = Math.max(3, Math.round(ebState.selectedPages / 4));
+      document.getElementById('eb-chapters-hint').textContent = `${chapters} capítulos`;
+      ebUpdateValid();
+    });
+  });
+  document.getElementById('eb-angle-select').addEventListener('change', e => {
+    ebState.selectedAngle = ebState.angles.find(a => a.uid === e.target.value);
+    ebUpdateValid();
+  });
+  document.getElementById('eb-text-model').addEventListener('change', ebUpdateValid);
+  document.getElementById('eb-image-model').addEventListener('change', ebUpdateValid);
+}
+
+async function ebGenerateIdeas() {
+  if (!ebState.product) return;
+  const btn = document.getElementById('eb-gen-ideas-btn');
+  const txt = document.getElementById('eb-gen-ideas-text');
+  btn.disabled = true;
+  txt.innerHTML = '<span class="eb-spinner"></span> Generando ideas…';
+  try {
+    const data = await apiFetch(`/ebooks/products/${ebState.product.id}/ideas`, {
+      method: 'POST',
+      body: JSON.stringify({
+        angle_uid:     ebState.selectedAngle.uid,
+        text_model_id: document.getElementById('eb-text-model').value,
+        pages:         ebState.selectedPages,
+      }),
+    });
+    if (!data || data.error) throw new Error(data && data.error || 'Error');
+    ebState.ideas = data.ideas;
+    ebRenderIdeas();
+    ebGoToStep(2);
+  } catch (err) {
+    showToast('Error al generar ideas: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    txt.textContent = 'Generar 5 ideas';
+  }
+}
+
+function ebRenderIdeas() {
+  const grid = document.getElementById('eb-ideas-grid');
+  grid.innerHTML = ebState.ideas.map((idea, i) => `
+    <div class="eb-idea-card" data-idx="${i}">
+      <div class="eb-idea-num">IDEA ${i + 1}</div>
+      <div class="eb-idea-title">${esc(idea.title || '')}</div>
+      <div class="eb-idea-subtitle">${esc(idea.subtitle || '')}</div>
+      <div class="eb-idea-synopsis">${esc(idea.synopsis || '')}</div>
+      <div class="eb-idea-caps-label">CAPÍTULOS</div>
+      <ul class="eb-idea-caps">
+        ${(idea.chapter_titles || []).slice(0, 6).map((t, k) => `<li>${k + 1}. ${esc(t)}</li>`).join('')}
+        ${(idea.chapter_titles || []).length > 6 ? `<li style="color:var(--muted)">… +${idea.chapter_titles.length - 6} más</li>` : ''}
+      </ul>
+      <button type="button" class="eb-use-btn">Usar esta idea</button>
+    </div>
+  `).join('');
+  grid.querySelectorAll('[data-idx]').forEach(card => {
+    card.addEventListener('click', () => {
+      ebState.selectedIdea = ebState.ideas[Number(card.dataset.idx)];
+      ebStartGeneration();
+    });
+  });
+}
+
+async function ebStartGeneration() {
+  ebGoToStep(3);
+  document.getElementById('eb-ebook-title').textContent = ebState.selectedIdea.title;
+  document.getElementById('eb-ebook-sub').textContent   = ebState.selectedIdea.subtitle || '';
+  document.getElementById('eb-preview-area').innerHTML  = '';
+  document.getElementById('eb-actions-area').style.display = 'none';
+  document.getElementById('eb-progress-fill').style.width  = '0%';
+  document.getElementById('eb-progress-label').textContent = '0%';
+  document.getElementById('eb-progress-msg').textContent   = 'Iniciando…';
+
+  try {
+    const data = await apiFetch(`/ebooks/products/${ebState.product.id}/generate`, {
+      method: 'POST',
+      body: JSON.stringify({
+        angle_uid:      ebState.selectedAngle.uid,
+        text_model_id:  document.getElementById('eb-text-model').value,
+        image_model_id: document.getElementById('eb-image-model').value,
+        pages:          ebState.selectedPages,
+        idea:           ebState.selectedIdea,
+      }),
+    });
+    if (!data || data.error) throw new Error(data && data.error || 'Error');
+    ebState.ebookId = data.id;
+    ebStartPolling();
+  } catch (err) {
+    showToast('Error: ' + err.message);
+    ebGoToStep(2);
+  }
+}
+
+function ebStartPolling() {
+  if (ebState.pollHandle) clearInterval(ebState.pollHandle);
+  const poll = async () => {
+    const data = await apiFetch('/ebooks/' + ebState.ebookId);
+    if (!data || !data.ebook) return;
+    ebRenderProgress(data.ebook);
+    if (data.ebook.status === 'ready' || data.ebook.status === 'failed') {
+      clearInterval(ebState.pollHandle);
+      ebState.pollHandle = null;
+      ebOnGenerationFinished(data.ebook);
+    }
+  };
+  poll();
+  ebState.pollHandle = setInterval(poll, 4000);
+}
+
+function ebRenderProgress(ebook) {
+  const pct = ebook.progress.total > 0 ? Math.round((ebook.progress.current / ebook.progress.total) * 100) : 0;
+  document.getElementById('eb-progress-fill').style.width = pct + '%';
+  document.getElementById('eb-progress-label').textContent = pct + '%';
+  document.getElementById('eb-progress-msg').textContent = ebook.progress.message || ebook.progress.step;
+
+  const preview = document.getElementById('eb-preview-area');
+  const blocks = (ebook.chapters || []).filter(c => c.content || c.image_url).map((c, i) => `
+    <div class="eb-chapter-preview">
+      ${c.image_url ? `<img src="${c.image_url}" alt="">` : ''}
+      <div class="eb-chapter-preview-num">CAPÍTULO ${i + 1}</div>
+      <div class="eb-chapter-preview-title">${esc(c.title || '')}</div>
+      ${c.content
+        ? `<div class="eb-chapter-preview-text">${esc(c.content.slice(0, 300))}${c.content.length > 300 ? '…' : ''}</div>`
+        : '<div style="font-size:11px;color:var(--muted)"><span class="eb-spinner"></span> Escribiendo…</div>'}
+    </div>
+  `).join('');
+  preview.innerHTML = blocks;
+}
+
+function ebOnGenerationFinished(ebook) {
+  if (ebook.status === 'failed') {
+    showToast('La generación falló: ' + (ebook.error || 'error desconocido'));
+    document.getElementById('eb-progress-msg').textContent = '❌ ' + (ebook.error || 'Falló la generación');
+    return;
+  }
+  showToast('¡Ebook listo!');
+  document.getElementById('eb-progress-msg').textContent = '✅ Ebook listo';
+  const actions = document.getElementById('eb-actions-area');
+  actions.style.display = 'flex';
+  const dl = document.getElementById('eb-download-pdf-btn');
+  if (ebook.pdf_url) {
+    dl.href = ebook.pdf_url;
+    dl.textContent = '⬇ Descargar PDF';
+  } else {
+    dl.href = '#';
+    dl.textContent = '⚠ PDF no disponible';
+    if (ebook.error) showToast(ebook.error);
+  }
+  ebLoadSavedList();
+}
+
+function ebNewEbook() {
+  ebState.selectedIdea = null;
+  ebState.ebookId = null;
+  if (ebState.pollHandle) { clearInterval(ebState.pollHandle); ebState.pollHandle = null; }
+  ebGoToStep(1);
+}
+
+async function ebLoadSavedList() {
+  if (!ebState.product) return;
+  const data = await apiFetch('/ebooks/by-product/' + ebState.product.id);
+  const sec = document.getElementById('eb-list-section');
+  const list = document.getElementById('eb-saved-list');
+  if (!data || !data.ebooks || data.ebooks.length === 0) { sec.style.display = 'none'; return; }
+  sec.style.display = '';
+  list.innerHTML = data.ebooks.map(e => `
+    <div class="eb-saved-item">
+      ${e.cover_image_url ? `<img src="${e.cover_image_url}" class="eb-saved-thumb">` : '<div class="eb-saved-thumb"></div>'}
+      <div class="eb-saved-info">
+        <div class="eb-saved-title">${esc(e.title)}</div>
+        <div class="eb-saved-sub">${esc(e.subtitle || '')}</div>
+        <div class="eb-saved-meta">${e.pages_target} págs · ${e.status === 'ready' ? '✅' : e.status === 'failed' ? '❌ falló' : '⏳ generando'} · ${fmtDate(e.created_at)}</div>
+      </div>
+      <div class="eb-saved-actions">
+        ${e.pdf_url ? `<a href="${e.pdf_url}" target="_blank" class="eb-mini-btn eb-mini-btn-primary">PDF</a>` : ''}
+        <button class="eb-mini-btn eb-mini-btn-danger" onclick="ebDelete(${e.id})">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function ebDelete(ebookId) {
+  if (!await confirmDelete({ title: '¿Eliminar este ebook?', message: 'Se eliminará el PDF y las imágenes generadas.' })) return;
+  const r = await apiFetch('/ebooks/' + ebookId, { method: 'DELETE' });
+  if (r && r.message) {
+    ebLoadSavedList();
+    showToast('Ebook eliminado');
+  }
+}
+
+// Hook up form listeners once (DOM is built at page load)
+document.addEventListener('DOMContentLoaded', ebInitFormHooks);
 
 /* ═══════════════════════════════════════════════════════════════
    PRECIOS — Calculadora de Rentabilidad
