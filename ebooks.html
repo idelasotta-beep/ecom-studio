@@ -41,10 +41,25 @@
   <div id="productLabel" class="text-sm text-[#8b949e]"></div>
 </header>
 
-<main class="max-w-5xl mx-auto px-6 py-8">
+<main class="max-w-6xl mx-auto px-6 py-8">
+
+  <!-- VIEW: GRID — productos del usuario con count de ebooks -->
+  <section id="viewGrid" class="space-y-6">
+    <div>
+      <h2 class="text-2xl font-bold">Ebooks</h2>
+      <p class="text-sm text-[#8b949e] mt-1">Genera ebooks lead-magnet asociados a tus productos. Selecciona un producto para empezar.</p>
+    </div>
+    <div id="productsGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"></div>
+    <div id="gridEmpty" class="hidden text-center py-16 text-[#8b949e]">
+      <p>No tienes productos todavía. <a href="dashboard.html" class="text-purple-400 hover:underline">Crea uno desde el dashboard</a>.</p>
+    </div>
+  </section>
 
   <!-- STEP 1: Configuración -->
-  <section id="step1" class="space-y-6">
+  <section id="step1" class="space-y-6 hidden">
+    <div class="flex items-center gap-3">
+      <button id="backToGridBtn" class="text-[#8b949e] hover:text-white text-sm">← Volver a productos</button>
+    </div>
     <div>
       <span class="pill">PASO 1 DE 3</span>
       <h2 class="text-2xl font-bold mt-3">Configura tu ebook</h2>
@@ -53,13 +68,8 @@
 
     <div class="card p-6 space-y-5">
       <div>
-        <label class="block text-sm font-medium mb-2">Producto</label>
-        <select id="productSel" class="field"></select>
-      </div>
-
-      <div>
         <label class="block text-sm font-medium mb-2">Ángulo de venta</label>
-        <select id="angleSel" class="field" disabled><option>Cargá un producto primero</option></select>
+        <select id="angleSel" class="field" disabled><option>Carga un producto primero</option></select>
         <p id="angleHint" class="text-xs text-[#8b949e] mt-2 hidden"></p>
       </div>
 
@@ -204,25 +214,62 @@ async function api(path, opts={}) {
   return data;
 }
 
-// ─── STEP 1: load products + angles ───
-async function loadProducts() {
-  const data = await api('/products');
+// ─── VIEW: grid de productos con count de ebooks ───
+async function loadGrid() {
+  const data = await api('/ebooks');
   state.products = data.products || [];
-  const sel = document.getElementById('productSel');
-  sel.innerHTML = state.products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-  if (PRODUCT_ID) sel.value = String(PRODUCT_ID);
+  const grid = document.getElementById('productsGrid');
+  const empty = document.getElementById('gridEmpty');
+
   if (state.products.length === 0) {
-    sel.innerHTML = '<option>No tienes productos — crea uno desde el dashboard</option>';
-    sel.disabled = true;
+    grid.innerHTML = '';
+    empty.classList.remove('hidden');
     return;
   }
-  await onProductChange();
+  empty.classList.add('hidden');
+
+  grid.innerHTML = state.products.map(p => {
+    const count = p.ebook_count || 0;
+    const ready = p.ebook_ready_count || 0;
+    const hasAngles = (p.angle_count || 0) > 0;
+    const countLabel = count === 0
+      ? 'Sin ebooks'
+      : `${ready === count ? count : `${ready}/${count}`} ${count === 1 ? 'ebook' : 'ebooks'}`;
+    const imgSrc = p.image ? p.image : `https://placehold.co/300x200/1c2128/8b949e?text=${encodeURIComponent(p.name)}`;
+    return `
+      <button data-pid="${p.id}" class="card card-hover overflow-hidden text-left transition group">
+        <div class="w-full aspect-[4/3] bg-[#1c2128] overflow-hidden">
+          <img src="${imgSrc}" alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.style.display='none'">
+        </div>
+        <div class="p-4">
+          <div class="font-semibold text-sm truncate mb-2">${escapeHtml(p.name)}</div>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="pill ${count === 0 ? '' : 'bg-purple-500/20'}">${countLabel}</span>
+            ${!hasAngles ? '<span class="pill" style="background:rgba(248,113,113,.12);color:#f87171">Sin ángulos</span>' : ''}
+          </div>
+        </div>
+      </button>
+    `;
+  }).join('');
+
+  grid.querySelectorAll('[data-pid]').forEach(card => {
+    card.addEventListener('click', () => selectProduct(Number(card.dataset.pid)));
+  });
 }
 
-async function onProductChange() {
-  const pid = Number(document.getElementById('productSel').value);
+async function selectProduct(pid) {
   state.product = state.products.find(p => p.id === pid);
-  document.getElementById('productLabel').textContent = state.product ? state.product.name : '';
+  if (!state.product) { toast('Producto no encontrado', 'error'); return; }
+  document.getElementById('productLabel').textContent = state.product.name;
+
+  // Reset wizard state for fresh product
+  state.angles = [];
+  state.selectedAngle = null;
+  state.selectedPages = null;
+  state.ideas = [];
+  state.selectedIdea = null;
+  state.ebookId = null;
+  document.querySelectorAll('.pages-btn').forEach(b => b.style.borderColor = '#30363d');
 
   // Load angles via the copys endpoint (same parser)
   try {
@@ -245,9 +292,16 @@ async function onProductChange() {
 
   updateValid();
   loadEbookList();
+  showStep(1);
 }
 
-document.getElementById('productSel').addEventListener('change', onProductChange);
+document.getElementById('backToGridBtn').addEventListener('click', () => {
+  document.getElementById('productLabel').textContent = '';
+  state.product = null;
+  loadGrid().catch(err => toast(err.message, 'error'));
+  showStep('grid');
+});
+
 document.getElementById('angleSel').addEventListener('change', e => {
   state.selectedAngle = state.angles.find(a => a.uid === e.target.value);
   updateValid();
@@ -454,9 +508,9 @@ async function loadEbookList() {
 }
 
 function showStep(n) {
-  ['step1', 'step2', 'step3'].forEach((s, i) => {
-    document.getElementById(s).classList.toggle('hidden', i + 1 !== n);
-  });
+  const sections = ['viewGrid', 'step1', 'step2', 'step3'];
+  const targetId = n === 'grid' ? 'viewGrid' : `step${n}`;
+  sections.forEach(s => document.getElementById(s).classList.toggle('hidden', s !== targetId));
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -465,7 +519,17 @@ function escapeHtml(s) {
 }
 
 // ─── Init ───
-loadProducts().catch(err => toast(err.message, 'error'));
+(async () => {
+  try {
+    await loadGrid();
+    // Deep-link: if ?product_id=N → skip the grid and go straight to the wizard
+    if (PRODUCT_ID && state.products.find(p => p.id === PRODUCT_ID)) {
+      await selectProduct(PRODUCT_ID);
+    } else {
+      showStep('grid');
+    }
+  } catch (err) { toast(err.message, 'error'); }
+})();
 </script>
 </body>
 </html>

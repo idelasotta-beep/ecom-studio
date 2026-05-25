@@ -324,6 +324,22 @@ NO TEXT, NO LOGOS, NO WATERMARKS, NO UI. Just a calm photographic background.`;
 // Endpoints
 // ─────────────────────────────────────────────────────────────────
 
+// GET /api/ebooks — products with ebook counts (grid landing view)
+router.get('/', (req, res) => {
+  const list = products.allForUser(req.user.id).map(p => {
+    const ebooksForProduct = product_ebooks.forProduct(p.id) || [];
+    const ready = ebooksForProduct.filter(e => e.status === 'ready').length;
+    const angleCount = (product_angles.forProduct(p.id) || []).reduce((sum, rec) => sum + parseAngles(rec.content).length, 0);
+    return {
+      ...p,
+      ebook_count: ebooksForProduct.length,
+      ebook_ready_count: ready,
+      angle_count: angleCount,
+    };
+  });
+  res.json({ products: list });
+});
+
 // POST /api/ebooks/products/:pid/ideas → 5 idea candidates
 router.post('/products/:pid/ideas', async (req, res) => {
   const p = products.one({ id: Number(req.params.pid), user_id: req.user.id });
@@ -430,22 +446,8 @@ router.post('/products/:pid/generate', async (req, res) => {
 });
 
 // GET /api/ebooks/:id → poll status
-router.get('/:id', (req, res) => {
-  const e = product_ebooks.one({ id: Number(req.params.id), user_id: req.user.id });
-  if (!e) return res.status(404).json({ error: 'Ebook no encontrado' });
-
-  const safe = { ...e };
-  if (safe.cover_image_path)      safe.cover_image_url      = `/ebook-images/${safe.cover_image_path}`;
-  if (safe.back_cover_image_path) safe.back_cover_image_url = `/ebook-images/${safe.back_cover_image_path}`;
-  if (safe.pdf_path)              safe.pdf_url              = `/ebooks/${safe.pdf_path}`;
-  safe.chapters = (safe.chapters || []).map(c => ({
-    ...c,
-    image_url: c.image_path ? `/ebook-images/${c.image_path}` : null,
-  }));
-  res.json({ ebook: safe });
-});
-
-// GET /api/ebooks/by-product/:pid → list
+// GET /api/ebooks/by-product/:pid → list (declared before /:id so the literal
+// prefix wins over the numeric param matcher)
 router.get('/by-product/:pid', (req, res) => {
   const p = products.one({ id: Number(req.params.pid), user_id: req.user.id });
   if (!p) return res.status(404).json({ error: 'Producto no encontrado' });
@@ -461,6 +463,21 @@ router.get('/by-product/:pid', (req, res) => {
     created_at:   e.created_at,
   }));
   res.json({ ebooks: list });
+});
+
+router.get('/:id', (req, res) => {
+  const e = product_ebooks.one({ id: Number(req.params.id), user_id: req.user.id });
+  if (!e) return res.status(404).json({ error: 'Ebook no encontrado' });
+
+  const safe = { ...e };
+  if (safe.cover_image_path)      safe.cover_image_url      = `/ebook-images/${safe.cover_image_path}`;
+  if (safe.back_cover_image_path) safe.back_cover_image_url = `/ebook-images/${safe.back_cover_image_path}`;
+  if (safe.pdf_path)              safe.pdf_url              = `/ebooks/${safe.pdf_path}`;
+  safe.chapters = (safe.chapters || []).map(c => ({
+    ...c,
+    image_url: c.image_path ? `/ebook-images/${c.image_path}` : null,
+  }));
+  res.json({ ebook: safe });
 });
 
 // POST /api/ebooks/:id/export-pdf → render PDF on demand
