@@ -1,3 +1,20 @@
+# Estilo de español
+
+> PROHIBIDO usar voseo argentino o conjugaciones rioplatenses en CUALQUIER
+> texto: respuestas al usuario, comentarios de código, mensajes de commit,
+> textos en la UI, prompts a la IA, copy de los productos, etc.
+>
+> NO usar: configurá, elegí, hacé, mirá, fijate, dale, andá, tenés, querés,
+> sos, vení, mandame, decime, contame, avisame, probalo, esperá, dejame,
+> cuidate, etc.
+>
+> SÍ usar español neutro / castellano estándar: configura, elige, haz,
+> mira, fíjate, ve, tienes, quieres, eres, ven, mándame, dime, cuéntame,
+> avísame, pruébalo, espera, déjame, cuídate.
+>
+> Esta regla aplica SIEMPRE, sin excepción, incluso si el usuario escribe
+> en argentino. Responde en neutro.
+
 # Entorno: Windows + PowerShell
 
 > Todos los comandos de terminal DEBEN usar sintaxis de PowerShell.

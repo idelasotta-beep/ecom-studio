@@ -236,7 +236,7 @@ async function generateImage({ engine, prompt, apiKey, aspect = '4:3', modelId }
 // ─────────────────────────────────────────────────────────────────
 // Prompts
 // ─────────────────────────────────────────────────────────────────
-const SYS_IDEAS = `Eres un copywriter senior experto en lead magnets y embudos de venta para e-commerce y dropshipping. Generas IDEAS de ebooks que: (1) están temáticamente conectadas al producto, (2) abordan el dolor del avatar SIN nombrar el producto explícitamente, (3) ofrecen valor educativo real, y (4) preparan al lector para querer comprar. Respondes SIEMPRE en formato JSON válido sin texto adicional ni markdown alrededor.`;
+const SYS_IDEAS = `Eres un copywriter senior experto en lead magnets y embudos de venta para e-commerce y dropshipping. Generas IDEAS de ebooks que: (1) están temáticamente conectadas al producto, (2) abordan el dolor del avatar SIN nombrar el producto explícitamente, (3) ofrecen valor educativo real, y (4) preparan al lector para querer comprar. Respondes SIEMPRE en formato JSON válido sin texto adicional ni markdown alrededor. Escribes en español neutro de Latinoamérica usando conjugaciones estándar (tú/tu). PROHIBIDO usar voseo rioplatense (vos/configurá/elegí/tenés/etc.).`;
 
 function buildIdeasPrompt({ productName, angle, chapters }) {
   return `Genera 5 IDEAS distintas de ebooks para usar como lead magnet asociado al siguiente producto.
@@ -273,10 +273,10 @@ REGLAS:
 - NO uses markdown, NO uses bloques de código alrededor del JSON, NO agregues texto antes o después. Solo el objeto JSON.`;
 }
 
-const SYS_CHAPTER = `Eres un escritor profesional de ebooks de marketing y bienestar. Escribís capítulos de lead-magnet PDF: ~600-800 palabras, tono cercano y profesional, prosa fluida en párrafos largos (sin viñetas, sin listas numeradas, sin markdown). Tu objetivo es educar al lector sobre el problema y posicionar SUTILMENTE el producto como aliado natural en la solución. NUNCA recomendás médicamente, NUNCA prometés resultados absolutos, USAS verbos suaves como "apoya", "favorece", "contribuye a". Mencionás el producto integrado en el flujo natural del texto, 1-2 veces por capítulo. Cerrás SIEMPRE el capítulo con un "consejo profesional" práctico, accionable y breve (3-5 líneas). Devolvés SOLO el texto del capítulo, sin título encabezado, sin markdown.`;
+const SYS_CHAPTER = `Eres un escritor profesional de ebooks de marketing y bienestar. Escribes capítulos de lead-magnet PDF: ~600-800 palabras, tono cercano y profesional, prosa fluida en párrafos largos (sin viñetas, sin listas numeradas, sin markdown). Tu objetivo es educar al lector sobre el problema y posicionar SUTILMENTE el producto como aliado natural en la solución. NUNCA recomiendas médicamente, NUNCA prometes resultados absolutos, USAS verbos suaves como "apoya", "favorece", "contribuye a". Mencionas el producto integrado en el flujo natural del texto, 1-2 veces por capítulo. Cierras SIEMPRE el capítulo con un "consejo profesional" práctico, accionable y breve (3-5 líneas). Devuelves SOLO el texto del capítulo, sin título encabezado, sin markdown. IDIOMA: español neutro de Latinoamérica con conjugaciones estándar (tú/tu/tienes/configura/elige). PROHIBIDO el voseo rioplatense (vos/configurá/tenés/elegí/etc.).`;
 
 function buildChapterPrompt({ productName, ebookTitle, chapterNum, totalChapters, chapterTitle, chapterTitlesAll, angle, previousSummary }) {
-  return `Escribí el contenido completo del capítulo ${chapterNum} de ${totalChapters} de un ebook tipo lead magnet.
+  return `Escribe el contenido completo del capítulo ${chapterNum} de ${totalChapters} de un ebook tipo lead magnet.
 
 EBOOK: "${ebookTitle}"
 PRODUCTO ASOCIADO (mencionar 1-2 veces integrado al texto, como aliado natural): ${productName}
@@ -304,7 +304,9 @@ REGLAS DE ESCRITURA:
 - USA verbos suaves: "apoya", "favorece", "contribuye a", "promueve".
 - El "consejo profesional" del cierre debe ser concreto, accionable, ejecutable hoy mismo por el lector.
 
-Devolvé únicamente el texto del capítulo, sin nada más alrededor.`;
+IDIOMA: español neutro estándar (tú/tu/tienes/configura/elige). PROHIBIDO el voseo argentino (vos/tenés/configurá).
+
+Devuelve únicamente el texto del capítulo, sin nada más alrededor.`;
 }
 
 function buildImagePrompt({ chapterTitle, chapterExcerpt, productCategory }) {
@@ -333,7 +335,7 @@ router.post('/products/:pid/ideas', async (req, res) => {
   const def = TEXT_MODELS[text_model_id];
   if (!def) return res.status(400).json({ error: 'Modelo de texto no válido' });
   const apiKey = keyFor(req.user.id, text_model_id);
-  if (!apiKey) return res.status(402).json({ error: `Configurá tu API key de ${def.provider} en Ajustes → APIs` });
+  if (!apiKey) return res.status(402).json({ error: `Configura tu API key de ${def.provider} en Ajustes → APIs` });
 
   // Locate the angle
   const angle = flatAngles(p.id).find(a => a.uid === angle_uid);
@@ -382,8 +384,8 @@ router.post('/products/:pid/generate', async (req, res) => {
 
   const textKey = keyFor(req.user.id, text_model_id);
   const imgKey  = keyFor(req.user.id, image_model_id, true);
-  if (!textKey) return res.status(402).json({ error: `Configurá tu API key de ${textDef.provider} en Ajustes → APIs` });
-  if (!imgKey)  return res.status(402).json({ error: `Configurá tu API key de ${imgDef.engine === 'openai' ? 'OpenAI' : 'Google'} en Ajustes → APIs` });
+  if (!textKey) return res.status(402).json({ error: `Configura tu API key de ${textDef.provider} en Ajustes → APIs` });
+  if (!imgKey)  return res.status(402).json({ error: `Configura tu API key de ${imgDef.engine === 'openai' ? 'OpenAI' : 'Google'} en Ajustes → APIs` });
 
   const angle = flatAngles(p.id).find(a => a.uid === angle_uid);
   if (!angle) return res.status(404).json({ error: 'El ángulo seleccionado ya no existe' });
@@ -593,22 +595,24 @@ async function generateEbookAsync(ebookId, ctx) {
   // ─── Step 3: intro & conclusion (parallel) ───
   updateProgress('intro_conclusion', totalChapters + 1, totalChapters + 2, 'Escribiendo introducción y conclusión…');
 
-  const introPrompt = `Escribí la INTRODUCCIÓN de un ebook tipo lead magnet titulado "${idea.title}", subtítulo "${idea.subtitle}".
+  const introPrompt = `Escribe la INTRODUCCIÓN de un ebook tipo lead magnet titulado "${idea.title}", subtítulo "${idea.subtitle}".
 El ebook acompaña al producto: ${product.name}.
 Avatar: ${angle.avatar || '(generalista)'}.
 Problema central: ${angle.problem || idea.synopsis}.
 
 Extensión: 150-220 palabras. Tono cercano, profesional. Sin títulos. Sin markdown. 2 párrafos.
-Mencioná el producto UNA SOLA VEZ, de pasada, como "el complemento ideal" o similar.
-Cerrá con una frase que invite al lector a embarcarse en la lectura.`;
+Menciona el producto UNA SOLA VEZ, de pasada, como "el complemento ideal" o similar.
+Cierra con una frase que invite al lector a embarcarse en la lectura.
+IDIOMA: español neutro estándar (tú/tu). PROHIBIDO el voseo argentino.`;
 
-  const conclusionPrompt = `Escribí la CONCLUSIÓN de un ebook tipo lead magnet titulado "${idea.title}".
+  const conclusionPrompt = `Escribe la CONCLUSIÓN de un ebook tipo lead magnet titulado "${idea.title}".
 Producto asociado: ${product.name}.
 Capítulos cubiertos: ${chapterTitles.join('; ')}.
 
 Extensión: 130-180 palabras. Tono motivacional pero sobrio. 2 párrafos. Sin markdown. Sin títulos.
-Reforzá la idea de que la consistencia es lo importante.
-Animá al lector a poner en práctica lo aprendido y mencioná el producto UNA vez como "herramienta de apoyo".`;
+Refuerza la idea de que la consistencia es lo importante.
+Anima al lector a poner en práctica lo aprendido y menciona el producto UNA vez como "herramienta de apoyo".
+IDIOMA: español neutro estándar (tú/tu). PROHIBIDO el voseo argentino.`;
 
   let introText = '', conclusionText = '';
   try {

@@ -47,8 +47,8 @@
   <section id="step1" class="space-y-6">
     <div>
       <span class="pill">PASO 1 DE 3</span>
-      <h2 class="text-2xl font-bold mt-3">Configurá tu ebook</h2>
-      <p class="text-sm text-[#8b949e] mt-1">Elegí el ángulo, los modelos y la extensión. Después la IA te propone 5 ideas para elegir.</p>
+      <h2 class="text-2xl font-bold mt-3">Configura tu ebook</h2>
+      <p class="text-sm text-[#8b949e] mt-1">Elige el ángulo, los modelos y la extensión. Después la IA te propone 5 ideas para elegir.</p>
     </div>
 
     <div class="card p-6 space-y-5">
@@ -119,8 +119,8 @@
   <section id="step2" class="space-y-6 hidden">
     <div>
       <span class="pill">PASO 2 DE 3</span>
-      <h2 class="text-2xl font-bold mt-3">Elegí una idea</h2>
-      <p class="text-sm text-[#8b949e] mt-1">Estas son 5 propuestas generadas por la IA. Seleccioná la que más te convenza.</p>
+      <h2 class="text-2xl font-bold mt-3">Elige una idea</h2>
+      <p class="text-sm text-[#8b949e] mt-1">Estas son 5 propuestas generadas por la IA. Selecciona la que más te convenza.</p>
     </div>
     <div id="ideasGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
     <div class="flex gap-3">
@@ -212,7 +212,7 @@ async function loadProducts() {
   sel.innerHTML = state.products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
   if (PRODUCT_ID) sel.value = String(PRODUCT_ID);
   if (state.products.length === 0) {
-    sel.innerHTML = '<option>No tenés productos — creá uno desde el dashboard</option>';
+    sel.innerHTML = '<option>No tienes productos — crea uno desde el dashboard</option>';
     sel.disabled = true;
     return;
   }
@@ -234,7 +234,7 @@ async function onProductChange() {
   if (state.angles.length === 0) {
     angleSel.innerHTML = '<option>Este producto no tiene ángulos de venta generados</option>';
     angleSel.disabled = true;
-    document.getElementById('angleHint').textContent = 'Generá ángulos primero desde el dashboard.';
+    document.getElementById('angleHint').textContent = 'Genera ángulos primero desde el dashboard.';
     document.getElementById('angleHint').classList.remove('hidden');
   } else {
     angleSel.disabled = false;
