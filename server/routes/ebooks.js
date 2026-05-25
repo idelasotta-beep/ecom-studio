@@ -487,6 +487,36 @@ router.get('/:id', (req, res) => {
   res.json({ ebook: safe });
 });
 
+// PUT /api/ebooks/:id/chapter/:cid → edita texto o título de un capítulo
+// Body: { content?, title? }. Invalida pdf_path para forzar re-exportar.
+router.put('/:id/chapter/:cid', (req, res) => {
+  const e = product_ebooks.one({ id: Number(req.params.id), user_id: req.user.id });
+  if (!e) return res.status(404).json({ error: 'Ebook no encontrado' });
+  if (e.status === 'generating') return res.status(409).json({ error: 'No puedes editar mientras el ebook se está generando' });
+
+  const cid = Number(req.params.cid);
+  const idx = (e.chapters || []).findIndex(c => c.id === cid);
+  if (idx === -1) return res.status(404).json({ error: 'Capítulo no encontrado' });
+
+  const { content, title } = req.body;
+  if (content === undefined && title === undefined) {
+    return res.status(400).json({ error: 'Nada que actualizar (envía content o title)' });
+  }
+  if (content !== undefined && typeof content !== 'string') return res.status(400).json({ error: 'content debe ser string' });
+  if (title   !== undefined && typeof title   !== 'string') return res.status(400).json({ error: 'title debe ser string' });
+
+  const patch = {};
+  if (content !== undefined) patch.content = content.trim();
+  if (title   !== undefined) patch.title   = title.trim();
+
+  const updatedChapters = e.chapters.map((c, i) => i === idx ? { ...c, ...patch } : c);
+  const oldPdf = e.pdf_path;
+  product_ebooks.updateById(e.id, { chapters: updatedChapters, pdf_path: null });
+  if (oldPdf) { try { fs.unlinkSync(path.join(EBOOK_PDF_DIR, oldPdf)); } catch (_) {} }
+
+  res.json({ chapter: updatedChapters[idx], pdf_invalidated: true });
+});
+
 // POST /api/ebooks/:id/regenerate-chapter → re-genera texto + imagen de UN capítulo
 // Body: { chapter_id }. Devuelve el chapter actualizado. Invalida el pdf_path actual
 // (el usuario tiene que volver a exportar).

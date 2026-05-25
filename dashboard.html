@@ -9662,14 +9662,15 @@ function ebStartPolling() {
 }
 
 function ebRenderProgress(ebook) {
+  ebState.currentEbook = ebook;
+
   const pct = ebook.progress.total > 0 ? Math.round((ebook.progress.current / ebook.progress.total) * 100) : 0;
   document.getElementById('eb-progress-fill').style.width = pct + '%';
   document.getElementById('eb-progress-label').textContent = pct + '%';
   document.getElementById('eb-progress-msg').textContent = ebook.progress.message || ebook.progress.step;
 
-  // Mostrar botón Regenerar solo cuando el ebook NO está generándose ahora mismo
-  // (regenerar un cap durante la generación inicial puede chocar con el job de fondo)
-  const canRegen = ebook.status !== 'generating';
+  // Solo permitir editar / regenerar cuando NO se está generando (evita race con el job de fondo)
+  const canEdit = ebook.status !== 'generating';
 
   const preview = document.getElementById('eb-preview-area');
   const blocks = (ebook.chapters || []).filter(c => c.content || c.image_url).map((c, i) => `
@@ -9680,14 +9681,60 @@ function ebRenderProgress(ebook) {
           <div class="eb-chapter-preview-num">CAPÍTULO ${i + 1}</div>
           <div class="eb-chapter-preview-title">${esc(c.title || '')}</div>
         </div>
-        ${canRegen && c.content ? `<button class="eb-mini-btn" onclick="ebRegenerateChapter(${c.id})" title="Re-generar este capítulo con la IA">↻ Regenerar</button>` : ''}
+        ${canEdit && c.content ? `
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="eb-mini-btn" onclick="ebEditChapter(${c.id})" title="Editar el texto a mano">✎ Editar</button>
+            <button class="eb-mini-btn" onclick="ebRegenerateChapter(${c.id})" title="Re-generar este capítulo con la IA">↻ Regenerar</button>
+          </div>` : ''}
       </div>
-      ${c.content
-        ? `<div class="eb-chapter-preview-text" style="margin-top:8px">${esc(c.content.slice(0, 300))}${c.content.length > 300 ? '…' : ''}</div>`
-        : '<div style="font-size:11px;color:var(--muted);margin-top:8px"><span class="eb-spinner"></span> Escribiendo…</div>'}
+      <div class="eb-chapter-preview-body" data-chapter-id="${c.id}">
+        ${c.content
+          ? `<div class="eb-chapter-preview-text" style="margin-top:8px">${esc(c.content.slice(0, 300))}${c.content.length > 300 ? '…' : ''}</div>`
+          : '<div style="font-size:11px;color:var(--muted);margin-top:8px"><span class="eb-spinner"></span> Escribiendo…</div>'}
+      </div>
     </div>
   `).join('');
   preview.innerHTML = blocks;
+}
+
+function ebEditChapter(chapterId) {
+  const ebook = ebState.currentEbook;
+  if (!ebook) return;
+  const ch = (ebook.chapters || []).find(c => c.id === chapterId);
+  if (!ch) return;
+  const body = document.querySelector(`#eb-ch-${chapterId} .eb-chapter-preview-body`);
+  if (!body) return;
+  body.innerHTML = `
+    <textarea id="eb-edit-${chapterId}" rows="10" style="width:100%;margin-top:10px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12.5px;line-height:1.6;font-family:inherit;resize:vertical">${esc(ch.content || '')}</textarea>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="eb-mini-btn eb-mini-btn-primary" onclick="ebSaveChapter(${chapterId})">💾 Guardar</button>
+      <button class="eb-mini-btn" onclick="ebCancelEditChapter(${chapterId})">Cancelar</button>
+    </div>`;
+}
+
+function ebCancelEditChapter(chapterId) {
+  // Forzar re-render desde el state guardado
+  if (ebState.currentEbook) ebRenderProgress(ebState.currentEbook);
+}
+
+async function ebSaveChapter(chapterId) {
+  const ta = document.getElementById('eb-edit-' + chapterId);
+  if (!ta) return;
+  const content = ta.value;
+  try {
+    const r = await apiFetch('/ebooks/' + ebState.ebookId + '/chapter/' + chapterId, {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    });
+    if (!r || r.error) throw new Error(r && r.error || 'Error');
+    // Refrescar todo el ebook desde la DB para mantener el state consistente
+    const fresh = await apiFetch('/ebooks/' + ebState.ebookId);
+    if (fresh && fresh.ebook) ebRenderProgress(fresh.ebook);
+    ebMarkPdfStale();
+    showToast('Capítulo guardado — re-exporta el PDF cuando termines');
+  } catch (err) {
+    showToast('Error al guardar: ' + err.message);
+  }
 }
 
 async function ebRegenerateChapter(chapterId) {
