@@ -5265,8 +5265,13 @@ html.light .api-input { background:#f8fafc; }
         <!-- STEP 3: Generación + preview -->
         <div id="eb-step3" class="eb-step" style="display:none">
           <span class="eb-pill">PASO 3 DE 3</span>
-          <h2 class="eb-h2" id="eb-ebook-title"></h2>
-          <p class="eb-sub" id="eb-ebook-sub"></p>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <div style="flex:1;min-width:240px">
+              <h2 class="eb-h2" id="eb-ebook-title"></h2>
+              <p class="eb-sub" id="eb-ebook-sub"></p>
+            </div>
+            <button id="eb-edit-meta-btn" class="eb-mini-btn" style="display:none" onclick="ebEditMeta()">✎ Editar título / subtítulo</button>
+          </div>
 
           <div class="ang-form-card">
             <div class="eb-progress-row">
@@ -9669,11 +9674,16 @@ function ebRenderProgress(ebook) {
   document.getElementById('eb-progress-label').textContent = pct + '%';
   document.getElementById('eb-progress-msg').textContent = ebook.progress.message || ebook.progress.step;
 
+  // Sincronizar título + subtítulo del header (pueden haber cambiado por edición)
+  document.getElementById('eb-ebook-title').textContent = ebook.title || '';
+  document.getElementById('eb-ebook-sub').textContent   = ebook.subtitle || '';
+
   // Solo permitir editar / regenerar cuando NO se está generando (evita race con el job de fondo)
   const canEdit = ebook.status !== 'generating';
+  document.getElementById('eb-edit-meta-btn').style.display = canEdit ? '' : 'none';
 
   const preview = document.getElementById('eb-preview-area');
-  const blocks = (ebook.chapters || []).filter(c => c.content || c.image_url).map((c, i) => `
+  const chapterBlocks = (ebook.chapters || []).filter(c => c.content || c.image_url).map((c, i) => `
     <div class="eb-chapter-preview" id="eb-ch-${c.id}">
       ${c.image_url ? `<img src="${c.image_url}" alt="">` : ''}
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
@@ -9694,7 +9704,99 @@ function ebRenderProgress(ebook) {
       </div>
     </div>
   `).join('');
-  preview.innerHTML = blocks;
+
+  // Cards de intro y conclusión (solo cuando hay contenido y se puede editar)
+  const metaBlock = (label, key, content) => {
+    if (!content && !canEdit) return '';
+    return `
+      <div class="eb-chapter-preview" id="eb-meta-${key}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div class="eb-chapter-preview-title">${label}</div>
+          ${canEdit ? `<button class="eb-mini-btn" onclick="ebEditMetaField('${key}')">✎ Editar</button>` : ''}
+        </div>
+        <div class="eb-chapter-preview-body" data-meta-key="${key}">
+          ${content
+            ? `<div class="eb-chapter-preview-text" style="margin-top:8px">${esc(content.slice(0, 300))}${content.length > 300 ? '…' : ''}</div>`
+            : '<div style="font-size:11px;color:var(--muted);margin-top:8px">(vacío — click en Editar para escribir)</div>'}
+        </div>
+      </div>`;
+  };
+  const introBlock = metaBlock('Introducción',  'intro_content',      ebook.intro_content);
+  const conclBlock = metaBlock('Conclusión',    'conclusion_content', ebook.conclusion_content);
+
+  preview.innerHTML = chapterBlocks + introBlock + conclBlock;
+}
+
+// Edita un campo de metadatos (intro_content o conclusion_content) inline
+function ebEditMetaField(key) {
+  const ebook = ebState.currentEbook;
+  if (!ebook) return;
+  const body = document.querySelector(`#eb-meta-${key} .eb-chapter-preview-body`);
+  if (!body) return;
+  body.innerHTML = `
+    <textarea id="eb-meta-edit-${key}" rows="8" style="width:100%;margin-top:10px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12.5px;line-height:1.6;font-family:inherit;resize:vertical">${esc(ebook[key] || '')}</textarea>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="eb-mini-btn eb-mini-btn-primary" onclick="ebSaveMetaField('${key}')">💾 Guardar</button>
+      <button class="eb-mini-btn" onclick="ebRenderProgress(ebState.currentEbook)">Cancelar</button>
+    </div>`;
+}
+
+async function ebSaveMetaField(key) {
+  const ta = document.getElementById('eb-meta-edit-' + key);
+  if (!ta) return;
+  try {
+    const r = await apiFetch('/ebooks/' + ebState.ebookId, {
+      method: 'PUT',
+      body: JSON.stringify({ [key]: ta.value }),
+    });
+    if (!r || r.error) throw new Error(r && r.error || 'Error');
+    if (r.ebook) ebRenderProgress(r.ebook);
+    ebMarkPdfStale();
+    showToast('Guardado — re-exporta el PDF cuando termines');
+  } catch (err) {
+    showToast('Error al guardar: ' + err.message);
+  }
+}
+
+// Edita título + subtítulo (modal-style inline encima del progreso)
+function ebEditMeta() {
+  const ebook = ebState.currentEbook;
+  if (!ebook) return;
+  const wrap = document.getElementById('eb-edit-meta-btn').parentElement;
+  if (document.getElementById('eb-meta-editor')) return; // ya abierto
+  const editor = document.createElement('div');
+  editor.id = 'eb-meta-editor';
+  editor.style.cssText = 'flex:1 0 100%;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:10px';
+  editor.innerHTML = `
+    <label class="eb-label">Título</label>
+    <input id="eb-meta-title-input" class="eb-field" value="${esc(ebook.title || '')}">
+    <label class="eb-label" style="margin-top:10px">Subtítulo</label>
+    <input id="eb-meta-sub-input" class="eb-field" value="${esc(ebook.subtitle || '')}">
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="eb-mini-btn eb-mini-btn-primary" onclick="ebSaveMeta()">💾 Guardar</button>
+      <button class="eb-mini-btn" onclick="document.getElementById('eb-meta-editor').remove()">Cancelar</button>
+    </div>`;
+  wrap.appendChild(editor);
+}
+
+async function ebSaveMeta() {
+  const title    = document.getElementById('eb-meta-title-input').value;
+  const subtitle = document.getElementById('eb-meta-sub-input').value;
+  try {
+    const r = await apiFetch('/ebooks/' + ebState.ebookId, {
+      method: 'PUT',
+      body: JSON.stringify({ title, subtitle }),
+    });
+    if (!r || r.error) throw new Error(r && r.error || 'Error');
+    if (r.ebook) ebRenderProgress(r.ebook);
+    const ed = document.getElementById('eb-meta-editor');
+    if (ed) ed.remove();
+    ebMarkPdfStale();
+    ebLoadSavedList();
+    showToast('Metadatos guardados — re-exporta el PDF cuando termines');
+  } catch (err) {
+    showToast('Error: ' + err.message);
+  }
 }
 
 function ebEditChapter(chapterId) {

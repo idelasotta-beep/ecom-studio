@@ -487,6 +487,32 @@ router.get('/:id', (req, res) => {
   res.json({ ebook: safe });
 });
 
+// PUT /api/ebooks/:id → edita metadatos del ebook (título, subtítulo, intro, conclusión).
+// Body: { title?, subtitle?, intro_content?, conclusion_content? }. Invalida pdf_path.
+router.put('/:id', (req, res) => {
+  const e = product_ebooks.one({ id: Number(req.params.id), user_id: req.user.id });
+  if (!e) return res.status(404).json({ error: 'Ebook no encontrado' });
+  if (e.status === 'generating') return res.status(409).json({ error: 'No puedes editar mientras el ebook se está generando' });
+
+  const allowed = ['title', 'subtitle', 'intro_content', 'conclusion_content'];
+  const patch = {};
+  for (const k of allowed) {
+    if (req.body[k] !== undefined) {
+      if (typeof req.body[k] !== 'string') return res.status(400).json({ error: `${k} debe ser string` });
+      patch[k] = req.body[k].trim();
+    }
+  }
+  if (Object.keys(patch).length === 0) return res.status(400).json({ error: 'Nada que actualizar' });
+
+  // Limpieza del PDF viejo
+  const oldPdf = e.pdf_path;
+  patch.pdf_path = null;
+  product_ebooks.updateById(e.id, patch);
+  if (oldPdf) { try { fs.unlinkSync(path.join(EBOOK_PDF_DIR, oldPdf)); } catch (_) {} }
+
+  res.json({ ebook: product_ebooks.one({ id: e.id }), pdf_invalidated: true });
+});
+
 // PUT /api/ebooks/:id/chapter/:cid → edita texto o título de un capítulo
 // Body: { content?, title? }. Invalida pdf_path para forzar re-exportar.
 router.put('/:id/chapter/:cid', (req, res) => {
