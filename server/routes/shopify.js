@@ -25,11 +25,12 @@ const { requireAuth } = require('../middleware/auth');
 const { encrypt, decrypt } = require('../lib/shopify-crypto');
 const { ensureWebP } = require('../lib/image-optim');
 const { buildAssembledTemplate } = require('../lib/shopify-section-builder');
+const { mediaDir } = require('../lib/paths');
 
 const router = express.Router();
 router.use(requireAuth);
 
-const LANDINGS_DIR = path.join(__dirname, '..', 'landings');
+const LANDINGS_DIR = mediaDir('landings');
 
 // Shopify API version — bump periodically. As of 2026 the stable version is 2026-04.
 const SHOPIFY_API_VERSION = '2026-04';
@@ -505,7 +506,7 @@ router.post('/publish-landing', async (req, res) => {
   }
   const elementImageUrls = [...new Set(collectedUrls)];
   const elementUrlMap = {};  // local /ad-templates/xxx → Shopify CDN URL
-  const TEMPLATES_DIR = path.join(__dirname, '..', 'ad-templates');
+  const TEMPLATES_DIR = mediaDir('ad-templates');
   for (const localUrl of elementImageUrls) {
     const rel  = localUrl.replace(/^\/ad-templates\//, '');
     const absSource = path.join(TEMPLATES_DIR, rel);

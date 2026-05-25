@@ -4,10 +4,9 @@
  */
 const fs   = require('fs');
 const path = require('path');
+const { dbFile } = require('./lib/paths');
 
-const DB_FILE = process.env.PERSISTENT_DATA_DIR
-  ? path.join(process.env.PERSISTENT_DATA_DIR, 'ecommagic.json')
-  : path.join(__dirname, 'ecommagic.json');
+const DB_FILE = dbFile();
 
 const DEFAULTS = {
   users: [], user_settings: [],

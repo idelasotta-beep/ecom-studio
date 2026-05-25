@@ -7,14 +7,13 @@ const { ensureWebP, webpPathFor } = require('../lib/image-optim');
 const crypto = require('crypto');
 function uid() { return crypto.randomBytes(6).toString('hex'); }
 const { requireAuth } = require('../middleware/auth');
+const { mediaDir } = require('../lib/paths');
 
 const router = express.Router();
 router.use(requireAuth);
 
-const LANDINGS_DIR = path.join(__dirname, '..', 'landings');
-if (!fs.existsSync(LANDINGS_DIR)) fs.mkdirSync(LANDINGS_DIR, { recursive: true });
-
-const TEMPLATES_DIR = path.join(__dirname, '..', 'ad-templates');
+const LANDINGS_DIR  = mediaDir('landings');
+const TEMPLATES_DIR = mediaDir('ad-templates');
 
 // ── Model registry (same as products.js) ────────────────────────
 const MODELS = {

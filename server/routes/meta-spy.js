@@ -4,17 +4,13 @@ const path    = require('path');
 const crypto  = require('crypto');
 const { meta_spy_searches, meta_spy_ads, meta_spy_folders, meta_spy_saved, meta_spy_competitors, user_settings } = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { mediaDir, dbFile } = require('../lib/paths');
 
 const router = express.Router();
 router.use(requireAuth);
 
-// ── Storage for downloaded media ─────────────────────────────────
-const META_DIR = path.join(__dirname, '..', 'meta-ads');
-if (!fs.existsSync(META_DIR)) fs.mkdirSync(META_DIR, { recursive: true });
-
-const DB_FILE = process.env.PERSISTENT_DATA_DIR
-  ? path.join(process.env.PERSISTENT_DATA_DIR, 'ecommagic.json')
-  : path.join(__dirname, '..', 'ecommagic.json');
+const META_DIR = mediaDir('meta-ads');
+const DB_FILE  = dbFile();
 
 // ── Configurable via env (sensible defaults) ─────────────────────
 const APIFY_ACTOR_ID  = process.env.APIFY_ACTOR_ID  || 'curious_coder~facebook-ads-library-scraper';

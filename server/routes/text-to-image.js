@@ -5,12 +5,12 @@ const { Agent: UndiciAgent, fetch: undiciFetch } = require('undici');
 
 const { text_to_image_outputs, user_settings } = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { mediaDir } = require('../lib/paths');
 
 const router = express.Router();
 router.use(requireAuth);
 
-const OUTPUT_DIR = path.join(__dirname, '..', 'text-to-image');
-if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+const OUTPUT_DIR = mediaDir('text-to-image');
 
 // Nano Banana family
 const NANO_BANANA_MODELS = {

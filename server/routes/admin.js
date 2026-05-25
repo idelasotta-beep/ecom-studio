@@ -3,9 +3,9 @@ const fs      = require('fs');
 const path    = require('path');
 const { users, ad_templates, LANDING_CATEGORIES } = require('../db');
 const { requireAdmin } = require('../middleware/auth');
+const { mediaDir } = require('../lib/paths');
 
-const TEMPLATES_DIR = path.join(__dirname, '..', 'ad-templates');
-if (!fs.existsSync(TEMPLATES_DIR)) fs.mkdirSync(TEMPLATES_DIR, { recursive: true });
+const TEMPLATES_DIR = mediaDir('ad-templates');
 
 const router = express.Router();
 router.use(requireAdmin);

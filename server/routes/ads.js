@@ -4,14 +4,13 @@ const fs      = require('fs');
 const path    = require('path');
 const { products, product_research, product_angles, product_ads, ad_templates, user_settings } = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { mediaDir } = require('../lib/paths');
 
 const router = express.Router();
 router.use(requireAuth);
 
-const ADS_DIR = path.join(__dirname, '..', 'ads');
-if (!fs.existsSync(ADS_DIR)) fs.mkdirSync(ADS_DIR, { recursive: true });
-
-const TEMPLATES_DIR = path.join(__dirname, '..', 'ad-templates');
+const ADS_DIR       = mediaDir('ads');
+const TEMPLATES_DIR = mediaDir('ad-templates');
 
 // ── Model registry (same as products.js) ────────────────────────
 const MODELS = {

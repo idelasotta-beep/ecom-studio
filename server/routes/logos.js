@@ -5,12 +5,13 @@ const { Agent: UndiciAgent, fetch: undiciFetch } = require('undici');
 
 const { products, product_logos, product_research, ad_templates, user_settings } = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { mediaDir } = require('../lib/paths');
 
 const router = express.Router();
 router.use(requireAuth);
 
-const LOGOS_DIR   = path.join(__dirname, '..', 'logos');
-const TEMPLATES_DIR = path.join(__dirname, '..', 'ad-templates');
+const LOGOS_DIR     = mediaDir('logos');
+const TEMPLATES_DIR = mediaDir('ad-templates');
 
 // Nano Banana family (Gemini image generation)
 const NANO_BANANA_MODELS = {

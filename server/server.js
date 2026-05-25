@@ -2,6 +2,7 @@ const express = require('express');
 const cors    = require('cors');
 const path    = require('path');
 const fs      = require('fs');
+const { mediaDir } = require('./lib/paths');
 
 const app = express();
 app.disable('x-powered-by');
@@ -51,15 +52,8 @@ app.use(express.static(path.join(__dirname, '..'), {
   index: false,
 }));
 
-// Uploaded/generated media dirs. Routes write here via path.join(__dirname, '..', '<dir>'),
-// so we serve from the same location. On Railway, mount a persistent volume at /app/server
-// (or wherever this server lives) so these subdirectories survive redeploys.
-function mediaDir(name) {
-  const dir = path.join(__dirname, name);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  return dir;
-}
-
+// Uploaded/generated media dirs — single source of truth in server/lib/paths.js.
+// In Railway, PERSISTENT_DATA_DIR=/data (volume mount); locally falls back to ./server/.
 app.use('/ads',           express.static(mediaDir('ads')));
 app.use('/landings',      express.static(mediaDir('landings')));
 app.use('/mockups',       express.static(mediaDir('mockups')));
@@ -87,6 +81,8 @@ app.use('/api/pricing',      require('./routes/pricing'));
 app.use('/api/meta-spy',     require('./routes/meta-spy'));
 app.use('/api/tiktok-spy',   require('./routes/tiktok-spy'));
 app.use('/api/my-templates', require('./routes/my-templates'));
+// TEMP — eliminar después de migrar la data local a Railway:
+app.use('/api/restore',      require('./routes/restore'));
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
