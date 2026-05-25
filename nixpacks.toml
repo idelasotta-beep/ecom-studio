@@ -1,0 +1,16 @@
+# Railway / Nixpacks build config.
+#
+# Adds Chromium + its runtime libraries so Puppeteer (used by the ebook PDF
+# renderer) can launch a headless browser at runtime. Without this, Railway
+# spins up a Node container without a usable Chromium binary and Puppeteer
+# crashes on launch.
+#
+# PUPPETEER_SKIP_DOWNLOAD=true tells the npm-install phase NOT to download
+# the bundled Chromium (~150 MB) — we use the one from nixPkgs instead.
+# ebook-pdf.js auto-detects the Nix-store path with `which chromium`.
+
+[variables]
+PUPPETEER_SKIP_DOWNLOAD = "true"
+
+[phases.setup]
+nixPkgs = ['nodejs_20', 'chromium', 'fontconfig', 'freetype']

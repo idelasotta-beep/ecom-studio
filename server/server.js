@@ -3,6 +3,12 @@ const cors    = require('cors');
 const path    = require('path');
 const fs      = require('fs');
 const { mediaDir } = require('./lib/paths');
+const { product_ebooks } = require('./db');
+
+// Recovery: ebooks left mid-generation by a previous process crash should be
+// marked failed so the UI doesn't show them spinning forever.
+const staleCount = product_ebooks.markStaleAsFailed();
+if (staleCount > 0) console.warn(`[ebooks] marked ${staleCount} stale ebook(s) as failed (server restart)`);
 
 const app = express();
 app.disable('x-powered-by');
@@ -32,13 +38,14 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Without this, the backend folder, DB file, secrets, and config are all exposed.
 const BLOCKED_PATTERN = /^\/(?:server\b|\.|node_modules\b)|\.(?:env|bak|log|json|lock|md)$/i;
 const STATIC_ALLOWLIST = new Set([
-  '/index.html', '/login.html', '/register.html', '/dashboard.html', '/admin.html',
+  '/index.html', '/login.html', '/register.html', '/dashboard.html', '/admin.html', '/ebooks.html',
 ]);
 app.use((req, res, next) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/ads') ||
       req.path.startsWith('/landings') || req.path.startsWith('/mockups') ||
       req.path.startsWith('/logos') || req.path.startsWith('/text-to-image') ||
-      req.path.startsWith('/ad-templates') || req.path.startsWith('/meta-ads')) {
+      req.path.startsWith('/ad-templates') || req.path.startsWith('/meta-ads') ||
+      req.path.startsWith('/ebooks') || req.path.startsWith('/ebook-images')) {
     return next();
   }
   if (STATIC_ALLOWLIST.has(req.path)) return next();
@@ -61,6 +68,8 @@ app.use('/logos',         express.static(mediaDir('logos')));
 app.use('/text-to-image', express.static(mediaDir('text-to-image')));
 app.use('/ad-templates',  express.static(mediaDir('ad-templates')));
 app.use('/meta-ads',      express.static(mediaDir('meta-ads')));
+app.use('/ebooks',        express.static(mediaDir('ebooks')));
+app.use('/ebook-images',  express.static(mediaDir('ebook-images')));
 
 // ── Routes ───────────────────────────────────────────────────────
 app.use('/api/auth',  require('./routes/auth'));
@@ -81,6 +90,7 @@ app.use('/api/pricing',      require('./routes/pricing'));
 app.use('/api/meta-spy',     require('./routes/meta-spy'));
 app.use('/api/tiktok-spy',   require('./routes/tiktok-spy'));
 app.use('/api/my-templates', require('./routes/my-templates'));
+app.use('/api/ebooks',       require('./routes/ebooks'));
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));

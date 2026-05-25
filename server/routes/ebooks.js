@@ -1,0 +1,678 @@
+/**
+ * Ebook generation — Phase 1 (MVP).
+ *
+ * Endpoints:
+ *   POST   /api/ebooks/products/:pid/ideas        → generate 5 ebook idea candidates
+ *   POST   /api/ebooks/products/:pid/generate     → kick off async full generation
+ *   GET    /api/ebooks/:id                        → poll status + content
+ *   POST   /api/ebooks/:id/export-pdf             → render the final PDF (idempotent)
+ *   GET    /api/ebooks/by-product/:pid            → list ebooks for a product
+ *   DELETE /api/ebooks/:id                        → remove ebook + media files
+ *
+ * The /generate endpoint returns immediately with the new ebook_id and runs
+ * the heavy lifting in the background (fire-and-forget). The frontend polls
+ * /api/ebooks/:id every few seconds to render progress.
+ */
+const express = require('express');
+const fs      = require('fs');
+const path    = require('path');
+const crypto  = require('crypto');
+const { Agent: UndiciAgent, fetch: undiciFetch } = require('undici');
+
+const { products, product_angles, product_ebooks, user_settings } = require('../db');
+const { requireAuth } = require('../middleware/auth');
+const { mediaDir } = require('../lib/paths');
+const { buildEbookHTML } = require('../lib/ebook-template');
+const { renderEbookPDF } = require('../lib/ebook-pdf');
+const { callKie } = require('../lib/kie');
+
+const router = express.Router();
+router.use(requireAuth);
+
+const EBOOK_PDF_DIR = mediaDir('ebooks');
+const EBOOK_IMG_DIR = mediaDir('ebook-images');
+
+// ── Text model registry (mirror of copys.js) ─────────────────────
+const TEXT_MODELS = {
+  'gpt-4.1':                   { provider: 'openai',    label: 'GPT-4.1',                  key_field: 'openai_key' },
+  'gpt-4.1-mini':              { provider: 'openai',    label: 'GPT-4.1 mini',             key_field: 'openai_key' },
+  'gpt-4o':                    { provider: 'openai',    label: 'GPT-4o',                   key_field: 'openai_key' },
+  'gpt-4o-mini':               { provider: 'openai',    label: 'GPT-4o mini',              key_field: 'openai_key' },
+  'claude-opus-4-7':           { provider: 'anthropic', label: 'Claude Opus 4.7',          key_field: 'claude_key' },
+  'claude-sonnet-4-6':         { provider: 'anthropic', label: 'Claude Sonnet 4.6',        key_field: 'claude_key' },
+  'claude-haiku-4-5-20251001': { provider: 'anthropic', label: 'Claude Haiku 4.5',         key_field: 'claude_key' },
+  'gemini-2.5-pro':            { provider: 'google',    label: 'Gemini 2.5 Pro',           key_field: 'gemini_key' },
+  'gemini-2.5-flash':          { provider: 'google',    label: 'Gemini 2.5 Flash',         key_field: 'gemini_key' },
+  'kie:claude-sonnet-4-5':     { provider: 'kie',       label: 'Claude Sonnet 4.5 (Kie.ai)', key_field: 'kieai_key' },
+  'kie:gpt-5-2':               { provider: 'kie',       label: 'GPT-5.2 (Kie.ai)',           key_field: 'kieai_key' },
+};
+
+const IMAGE_MODELS = {
+  gpt_image_2:     { engine: 'openai',  label: 'GPT Image 2',          key_field: 'openai_key' },
+  nano_banana_2:   { engine: 'gemini',  label: 'Nano Banana 2',        key_field: 'gemini_key', model: 'gemini-3.1-flash-image-preview' },
+  nano_banana_pro: { engine: 'gemini',  label: 'Nano Banana Pro',      key_field: 'gemini_key', model: 'gemini-3-pro-image-preview' },
+};
+
+// 20→5, 40→10, 60→15, 80→20, 100→25 (≈ 4 pages per chapter incl. image).
+function chaptersFromPages(pages) {
+  return Math.max(3, Math.round(Number(pages) / 4));
+}
+
+// Helper to fetch the user's API key for a given model/image engine
+function keyFor(userId, model, isImage = false) {
+  const settings = user_settings.get(userId) || {};
+  const def = isImage ? IMAGE_MODELS[model] : TEXT_MODELS[model];
+  if (!def) return null;
+  return settings[def.key_field] || null;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Angle parser — same shape used by copys.js
+// ─────────────────────────────────────────────────────────────────
+function parseAngles(content) {
+  if (!content) return [];
+  const blocks = content.split(/^## ÁNGULO \d+:/m);
+  return blocks.slice(1).map((block, i) => {
+    const lines = block.trim().split('\n');
+    const title = (lines[0] || '').trim();
+    const body  = lines.slice(1).join('\n').trim();
+    const subs  = {};
+    body.split(/^### /m).slice(1).forEach(s => {
+      const nl = s.indexOf('\n');
+      if (nl === -1) return;
+      subs[s.slice(0, nl).trim()] = s.slice(nl + 1).trim();
+    });
+    return {
+      num:         String(i + 1).padStart(2, '0'),
+      title,
+      description: subs['Descripción del Ángulo'] || '',
+      avatar:      subs['Avatar o Público Objetivo'] || '',
+      problem:     subs['Problema Específico que Aborda el Ángulo de Venta'] || '',
+      solution:    subs['Cómo el Producto se Vuelve la Solución Ideal'] || '',
+    };
+  });
+}
+
+function flatAngles(productId) {
+  const recs = product_angles.forProduct(productId);
+  const out = [];
+  recs.forEach(rec => {
+    parseAngles(rec.content).forEach((angle, idx) => {
+      out.push({
+        uid:         `${rec.id}-${idx}`,
+        record_id:   rec.id,
+        index:       idx,
+        num:         angle.num,
+        title:       angle.title,
+        description: angle.description,
+        avatar:      angle.avatar,
+        problem:     angle.problem,
+        solution:    angle.solution,
+        record_date: rec.created_at,
+      });
+    });
+  });
+  return out;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Text generation — unified across providers
+// ─────────────────────────────────────────────────────────────────
+async function generateText({ modelId, apiKey, system, user, maxTokens = 4000, temperature = 0.75 }) {
+  const def = TEXT_MODELS[modelId];
+  if (!def) throw new Error('Modelo de texto desconocido');
+
+  if (def.provider === 'kie') {
+    return callKie({ apiKey, modelId, sysMsg: system, userPrompt: user, maxTokens, temperature });
+  }
+
+  if (def.provider === 'openai') {
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: modelId,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user',   content: user },
+        ],
+        max_tokens: maxTokens,
+        temperature,
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error?.message || `OpenAI error ${r.status}`);
+    return d.choices[0].message.content;
+  }
+
+  if (def.provider === 'anthropic') {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: modelId,
+        max_tokens: maxTokens,
+        system,
+        messages: [{ role: 'user', content: user }],
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error?.message || `Anthropic error ${r.status}`);
+    return d.content[0].text;
+  }
+
+  if (def.provider === 'google') {
+    const isThinking25 = /^gemini-(2\.5|3)/.test(modelId);
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `${system}\n\n${user}` }] }],
+          generationConfig: { maxOutputTokens: isThinking25 ? Math.max(maxTokens, 8192) : maxTokens, temperature },
+        }),
+      }
+    );
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error?.message || `Google error ${r.status}`);
+    const cand = d.candidates && d.candidates[0];
+    const text = cand?.content?.parts?.[0]?.text;
+    if (!text) throw new Error(`Google devolvió respuesta vacía (finishReason: ${cand?.finishReason || 'desconocido'})`);
+    return text;
+  }
+
+  throw new Error(`Proveedor ${def.provider} no soportado`);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Image generation — minimal client for GPT-Image-1 and Nano Banana
+// ─────────────────────────────────────────────────────────────────
+const longRunningAgent = new UndiciAgent({
+  headersTimeout: 5 * 60 * 1000,
+  bodyTimeout:    5 * 60 * 1000,
+  connectTimeout: 30 * 1000,
+});
+
+async function generateImage({ engine, prompt, apiKey, aspect = '4:3', modelId }) {
+  if (engine === 'openai') {
+    const sizeMap = { '4:3': '1536x1024', '16:9': '1536x1024', '1:1': '1024x1024', '9:16': '1024x1536' };
+    const size = sizeMap[aspect] || '1536x1024';
+    const r = await undiciFetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'gpt-image-1', prompt, n: 1, size, quality: 'medium' }),
+      dispatcher: longRunningAgent,
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error?.message || `OpenAI image error ${r.status}`);
+    return Buffer.from(d.data[0].b64_json, 'base64');
+  }
+
+  if (engine === 'gemini') {
+    const r = await undiciFetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: aspect } },
+        }),
+        dispatcher: longRunningAgent,
+      }
+    );
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error?.message || `Gemini image error ${r.status}`);
+    const parts = d.candidates?.[0]?.content?.parts || [];
+    const imgPart = parts.find(p => p.inlineData?.data);
+    if (!imgPart) throw new Error('Gemini no devolvió imagen');
+    return Buffer.from(imgPart.inlineData.data, 'base64');
+  }
+
+  throw new Error(`Engine ${engine} no soportado`);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Prompts
+// ─────────────────────────────────────────────────────────────────
+const SYS_IDEAS = `Eres un copywriter senior experto en lead magnets y embudos de venta para e-commerce y dropshipping. Generas IDEAS de ebooks que: (1) están temáticamente conectadas al producto, (2) abordan el dolor del avatar SIN nombrar el producto explícitamente, (3) ofrecen valor educativo real, y (4) preparan al lector para querer comprar. Respondes SIEMPRE en formato JSON válido sin texto adicional ni markdown alrededor.`;
+
+function buildIdeasPrompt({ productName, angle, chapters }) {
+  return `Genera 5 IDEAS distintas de ebooks para usar como lead magnet asociado al siguiente producto.
+
+PRODUCTO: ${productName}
+
+ÁNGULO DE VENTA (esto guía el enfoque del ebook):
+- Título del ángulo: ${angle.title}
+- Descripción: ${angle.description || '(no especificada)'}
+- Avatar / cliente ideal: ${angle.avatar || '(no especificado)'}
+- Problema que aborda: ${angle.problem || '(no especificado)'}
+- Cómo el producto soluciona: ${angle.solution || '(no especificado)'}
+
+CADA IDEA debe tener exactamente ${chapters} capítulos (capítulos cortos y digeribles).
+
+DEVUELVE JSON con esta forma exacta (sin markdown, sin comillas de bloque, solo el objeto):
+{
+  "ideas": [
+    {
+      "title": "Título del ebook en mayúsculas (8-12 palabras impactantes)",
+      "subtitle": "Subtítulo de 1 línea que clarifica la promesa (~12-18 palabras)",
+      "synopsis": "Párrafo de 2-3 oraciones que describe qué aprenderá el lector y por qué le importa",
+      "chapter_titles": ["Título cap 1 (frase atractiva con dos puntos)", "Título cap 2", ...]
+    },
+    ... (5 ideas totales)
+  ]
+}
+
+REGLAS:
+- Las 5 ideas deben ser CLARAMENTE distintas en enfoque (no variaciones del mismo título).
+- El estilo de los títulos debe ser tipo "El Laberinto del Hambre: Por Qué Tu Cuerpo Pide Dulce" — con dos puntos, descriptivo + provocativo.
+- Cada idea debe SERVIR al producto sin nombrarlo: educa al lector en el problema y lo prepara para ver el producto como solución natural.
+- En español neutro de Latinoamérica.
+- NO uses markdown, NO uses bloques de código alrededor del JSON, NO agregues texto antes o después. Solo el objeto JSON.`;
+}
+
+const SYS_CHAPTER = `Eres un escritor profesional de ebooks de marketing y bienestar. Escribís capítulos de lead-magnet PDF: ~600-800 palabras, tono cercano y profesional, prosa fluida en párrafos largos (sin viñetas, sin listas numeradas, sin markdown). Tu objetivo es educar al lector sobre el problema y posicionar SUTILMENTE el producto como aliado natural en la solución. NUNCA recomendás médicamente, NUNCA prometés resultados absolutos, USAS verbos suaves como "apoya", "favorece", "contribuye a". Mencionás el producto integrado en el flujo natural del texto, 1-2 veces por capítulo. Cerrás SIEMPRE el capítulo con un "consejo profesional" práctico, accionable y breve (3-5 líneas). Devolvés SOLO el texto del capítulo, sin título encabezado, sin markdown.`;
+
+function buildChapterPrompt({ productName, ebookTitle, chapterNum, totalChapters, chapterTitle, chapterTitlesAll, angle, previousSummary }) {
+  return `Escribí el contenido completo del capítulo ${chapterNum} de ${totalChapters} de un ebook tipo lead magnet.
+
+EBOOK: "${ebookTitle}"
+PRODUCTO ASOCIADO (mencionar 1-2 veces integrado al texto, como aliado natural): ${productName}
+
+CAPÍTULO ACTUAL: "${chapterTitle}"
+
+TODOS LOS CAPÍTULOS DEL EBOOK (para que mantengas coherencia y no repitas):
+${chapterTitlesAll.map((t, i) => `${i + 1}. ${t}`).join('\n')}
+
+ÁNGULO DE VENTA SUBYACENTE:
+- Avatar: ${angle.avatar || '(generalista)'}
+- Problema: ${angle.problem || '(no especificado)'}
+- Cómo el producto ayuda: ${angle.solution || '(no especificado)'}
+
+${previousSummary ? `RESUMEN BREVE DE CAPÍTULOS ANTERIORES (no repitas ideas ya cubiertas):\n${previousSummary}\n` : ''}
+
+REGLAS DE ESCRITURA:
+- Extensión: 600-800 palabras de prosa fluida.
+- Estructura: 3-4 párrafos densos + cierre con "consejo profesional" en su propio párrafo.
+- Estilo: español neutro LATAM, profesional pero cercano. Cero modismos regionales.
+- Mención del producto: 1-2 veces, integrado naturalmente en el texto (ej: "productos como ${productName} actúan como aliados estratégicos al ayudar a...").
+- NO uses títulos ni encabezados (el título lo agrega el sistema arriba).
+- NO uses markdown (sin **, sin #, sin viñetas, sin numeración).
+- NO prometas curas, resultados garantizados, ni "X kilos en N días".
+- USA verbos suaves: "apoya", "favorece", "contribuye a", "promueve".
+- El "consejo profesional" del cierre debe ser concreto, accionable, ejecutable hoy mismo por el lector.
+
+Devolvé únicamente el texto del capítulo, sin nada más alrededor.`;
+}
+
+function buildImagePrompt({ chapterTitle, chapterExcerpt, productCategory }) {
+  return `Editorial photography for an ebook chapter illustration. Subject: "${chapterTitle}". Context from the chapter: ${String(chapterExcerpt).slice(0, 400)}.
+Style: clean, modern editorial photography, natural lighting, soft shadows, professional color grading, calm and aspirational mood. Shallow depth of field. Composition with breathing room — works as a horizontal banner. ${productCategory ? `Related to: ${productCategory}.` : ''}
+ABSOLUTE PROHIBITIONS: no text overlay, no logos, no watermarks, no UI elements, no captions, no labels, no charts or infographics. Just a clean photographic scene.`;
+}
+
+function buildCoverImagePrompt({ ebookTitle, productCategory }) {
+  return `Background image for the cover of a professional ebook titled "${ebookTitle}". Style: clean editorial photography, soft natural light, calm aspirational mood, professional color palette. Composition: empty negative space at the top half where the title will overlay; main subject in the lower portion. ${productCategory ? `Theme: ${productCategory}.` : ''}
+NO TEXT, NO LOGOS, NO WATERMARKS, NO UI. Just a calm photographic background.`;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Endpoints
+// ─────────────────────────────────────────────────────────────────
+
+// POST /api/ebooks/products/:pid/ideas → 5 idea candidates
+router.post('/products/:pid/ideas', async (req, res) => {
+  const p = products.one({ id: Number(req.params.pid), user_id: req.user.id });
+  if (!p) return res.status(404).json({ error: 'Producto no encontrado' });
+
+  const { angle_uid, text_model_id, pages } = req.body;
+  if (!angle_uid || !text_model_id || !pages) return res.status(400).json({ error: 'Faltan angle_uid, text_model_id o pages' });
+
+  const def = TEXT_MODELS[text_model_id];
+  if (!def) return res.status(400).json({ error: 'Modelo de texto no válido' });
+  const apiKey = keyFor(req.user.id, text_model_id);
+  if (!apiKey) return res.status(402).json({ error: `Configurá tu API key de ${def.provider} en Ajustes → APIs` });
+
+  // Locate the angle
+  const angle = flatAngles(p.id).find(a => a.uid === angle_uid);
+  if (!angle) return res.status(404).json({ error: 'El ángulo seleccionado ya no existe' });
+
+  const totalChapters = chaptersFromPages(pages);
+  const prompt = buildIdeasPrompt({ productName: p.name, angle, chapters: totalChapters });
+
+  let raw;
+  try {
+    raw = await generateText({ modelId: text_model_id, apiKey, system: SYS_IDEAS, user: prompt, maxTokens: 3000, temperature: 0.85 });
+  } catch (err) {
+    return res.status(502).json({ error: `Error al llamar la API de IA: ${err.message}` });
+  }
+
+  // Strip code fences if the model added them despite instructions
+  const cleaned = String(raw || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+
+  let parsed;
+  try { parsed = JSON.parse(cleaned); }
+  catch (err) {
+    return res.status(502).json({ error: 'La IA no devolvió JSON válido', raw: cleaned.slice(0, 500) });
+  }
+
+  if (!Array.isArray(parsed.ideas) || parsed.ideas.length === 0) {
+    return res.status(502).json({ error: 'Respuesta inválida (sin ideas[])', raw: cleaned.slice(0, 500) });
+  }
+
+  res.json({ ideas: parsed.ideas, chapters: totalChapters, pages: Number(pages), angle });
+});
+
+// POST /api/ebooks/products/:pid/generate → kick off async generation
+router.post('/products/:pid/generate', async (req, res) => {
+  const p = products.one({ id: Number(req.params.pid), user_id: req.user.id });
+  if (!p) return res.status(404).json({ error: 'Producto no encontrado' });
+
+  const { angle_uid, text_model_id, image_model_id, pages, idea } = req.body;
+  if (!angle_uid || !text_model_id || !image_model_id || !pages || !idea) {
+    return res.status(400).json({ error: 'Faltan campos requeridos' });
+  }
+
+  const textDef = TEXT_MODELS[text_model_id];
+  const imgDef  = IMAGE_MODELS[image_model_id];
+  if (!textDef) return res.status(400).json({ error: 'Modelo de texto no válido' });
+  if (!imgDef)  return res.status(400).json({ error: 'Modelo de imagen no válido' });
+
+  const textKey = keyFor(req.user.id, text_model_id);
+  const imgKey  = keyFor(req.user.id, image_model_id, true);
+  if (!textKey) return res.status(402).json({ error: `Configurá tu API key de ${textDef.provider} en Ajustes → APIs` });
+  if (!imgKey)  return res.status(402).json({ error: `Configurá tu API key de ${imgDef.engine === 'openai' ? 'OpenAI' : 'Google'} en Ajustes → APIs` });
+
+  const angle = flatAngles(p.id).find(a => a.uid === angle_uid);
+  if (!angle) return res.status(404).json({ error: 'El ángulo seleccionado ya no existe' });
+
+  const totalChapters = chaptersFromPages(pages);
+  const chapterTitles = Array.isArray(idea.chapter_titles) ? idea.chapter_titles.slice(0, totalChapters) : [];
+
+  // Create draft row
+  const draft = product_ebooks.insert({
+    user_id:       req.user.id,
+    product_id:    p.id,
+    status:        'generating',
+    title:         idea.title || `Ebook de ${p.name}`,
+    subtitle:      idea.subtitle || '',
+    angle_ref:     angle.title,
+    angle_content: `## ÁNGULO ${angle.num}: ${angle.title}`,
+    pages_target:  Number(pages),
+    text_model:    textDef.label,
+    text_provider: textDef.provider,
+    image_model:   imgDef.label,
+    chapters:      chapterTitles.map((t, i) => ({ id: i + 1, num: i + 1, title: t, content: '', image_path: null })),
+    progress:      { step: 'starting', current: 0, total: totalChapters + 2, message: 'Preparando…' },
+  });
+
+  // Fire and forget — the heavy work runs in the background
+  generateEbookAsync(draft.id, {
+    product:        p,
+    angle,
+    idea,
+    totalChapters,
+    text_model_id,
+    image_model_id,
+    textKey,
+    imgKey,
+    imgDef,
+  }).catch(err => {
+    console.error(`[ebooks] generation ${draft.id} failed:`, err);
+    product_ebooks.updateById(draft.id, { status: 'failed', error: err.message });
+  });
+
+  res.status(202).json({ id: draft.id, status: 'generating', total_steps: totalChapters + 2 });
+});
+
+// GET /api/ebooks/:id → poll status
+router.get('/:id', (req, res) => {
+  const e = product_ebooks.one({ id: Number(req.params.id), user_id: req.user.id });
+  if (!e) return res.status(404).json({ error: 'Ebook no encontrado' });
+
+  const safe = { ...e };
+  if (safe.cover_image_path)      safe.cover_image_url      = `/ebook-images/${safe.cover_image_path}`;
+  if (safe.back_cover_image_path) safe.back_cover_image_url = `/ebook-images/${safe.back_cover_image_path}`;
+  if (safe.pdf_path)              safe.pdf_url              = `/ebooks/${safe.pdf_path}`;
+  safe.chapters = (safe.chapters || []).map(c => ({
+    ...c,
+    image_url: c.image_path ? `/ebook-images/${c.image_path}` : null,
+  }));
+  res.json({ ebook: safe });
+});
+
+// GET /api/ebooks/by-product/:pid → list
+router.get('/by-product/:pid', (req, res) => {
+  const p = products.one({ id: Number(req.params.pid), user_id: req.user.id });
+  if (!p) return res.status(404).json({ error: 'Producto no encontrado' });
+  const list = product_ebooks.forProduct(p.id).map(e => ({
+    id:           e.id,
+    title:        e.title,
+    subtitle:     e.subtitle,
+    status:       e.status,
+    pages_target: e.pages_target,
+    progress:     e.progress,
+    pdf_url:      e.pdf_path ? `/ebooks/${e.pdf_path}` : null,
+    cover_image_url: e.cover_image_path ? `/ebook-images/${e.cover_image_path}` : null,
+    created_at:   e.created_at,
+  }));
+  res.json({ ebooks: list });
+});
+
+// POST /api/ebooks/:id/export-pdf → render PDF on demand
+router.post('/:id/export-pdf', async (req, res) => {
+  const e = product_ebooks.one({ id: Number(req.params.id), user_id: req.user.id });
+  if (!e) return res.status(404).json({ error: 'Ebook no encontrado' });
+  if (e.status !== 'ready') return res.status(409).json({ error: `El ebook no está listo (status: ${e.status})` });
+
+  try {
+    const pdfFilename = await buildPDF(e);
+    product_ebooks.updateById(e.id, { pdf_path: pdfFilename });
+    res.json({ pdf_url: `/ebooks/${pdfFilename}` });
+  } catch (err) {
+    console.error('[ebooks] PDF export failed:', err);
+    res.status(500).json({ error: `Error al generar PDF: ${err.message}` });
+  }
+});
+
+// DELETE /api/ebooks/:id
+router.delete('/:id', (req, res) => {
+  const e = product_ebooks.one({ id: Number(req.params.id), user_id: req.user.id });
+  if (!e) return res.status(404).json({ error: 'Ebook no encontrado' });
+
+  // Best-effort cleanup of files
+  const tryUnlink = (p) => { try { fs.unlinkSync(p); } catch (_) {} };
+  if (e.pdf_path)              tryUnlink(path.join(EBOOK_PDF_DIR, e.pdf_path));
+  if (e.cover_image_path)      tryUnlink(path.join(EBOOK_IMG_DIR, e.cover_image_path));
+  if (e.back_cover_image_path) tryUnlink(path.join(EBOOK_IMG_DIR, e.back_cover_image_path));
+  (e.chapters || []).forEach(c => { if (c.image_path) tryUnlink(path.join(EBOOK_IMG_DIR, c.image_path)); });
+
+  product_ebooks.delete(e.id, req.user.id);
+  res.json({ message: 'Ebook eliminado' });
+});
+
+// ─────────────────────────────────────────────────────────────────
+// Async generation orchestrator
+// ─────────────────────────────────────────────────────────────────
+async function generateEbookAsync(ebookId, ctx) {
+  const { product, angle, idea, totalChapters, text_model_id, image_model_id, textKey, imgKey, imgDef } = ctx;
+  const chapterTitles = (idea.chapter_titles || []).slice(0, totalChapters);
+
+  const updateProgress = (step, current, total, message) => {
+    product_ebooks.updateById(ebookId, { progress: { step, current, total, message } });
+  };
+
+  // ─── Step 1: cover image + back cover image (parallel) ───
+  updateProgress('cover', 0, totalChapters + 2, 'Generando portada…');
+  const productCategory = product.description ? product.description.slice(0, 120) : product.name;
+  const coverPrompt = buildCoverImagePrompt({ ebookTitle: idea.title, productCategory });
+
+  const saveImg = (buf, basename) => {
+    const filename = `${basename}_${ebookId}_${Date.now()}_${crypto.randomBytes(3).toString('hex')}.png`;
+    fs.writeFileSync(path.join(EBOOK_IMG_DIR, filename), buf);
+    return filename;
+  };
+
+  let coverFile, backFile;
+  try {
+    const [coverBuf, backBuf] = await Promise.all([
+      generateImage({ engine: imgDef.engine, prompt: coverPrompt, apiKey: imgKey, aspect: '4:3', modelId: imgDef.model }),
+      generateImage({ engine: imgDef.engine, prompt: coverPrompt + ' Alternative composition, equally clean.', apiKey: imgKey, aspect: '4:3', modelId: imgDef.model }),
+    ]);
+    coverFile = saveImg(coverBuf, 'cover');
+    backFile  = saveImg(backBuf,  'back');
+    product_ebooks.updateById(ebookId, { cover_image_path: coverFile, back_cover_image_path: backFile });
+  } catch (err) {
+    throw new Error(`Falló la generación de portada: ${err.message}`);
+  }
+
+  // ─── Step 2: each chapter (text → image), sequential to keep context coherent ───
+  const previousSummaries = [];
+  for (let i = 0; i < chapterTitles.length; i++) {
+    const chapterNum = i + 1;
+    const chapterTitle = chapterTitles[i];
+
+    updateProgress('chapter_text', chapterNum, totalChapters + 2, `Escribiendo capítulo ${chapterNum}/${totalChapters}…`);
+
+    const previousSummary = previousSummaries.length
+      ? previousSummaries.map((s, k) => `Cap ${k + 1}: ${s.slice(0, 140)}`).join('\n')
+      : '';
+
+    const chapterPrompt = buildChapterPrompt({
+      productName:       product.name,
+      ebookTitle:        idea.title,
+      chapterNum,
+      totalChapters,
+      chapterTitle,
+      chapterTitlesAll:  chapterTitles,
+      angle,
+      previousSummary,
+    });
+
+    let chapterText;
+    try {
+      chapterText = await generateText({
+        modelId:     text_model_id,
+        apiKey:      textKey,
+        system:      SYS_CHAPTER,
+        user:        chapterPrompt,
+        maxTokens:   2500,
+        temperature: 0.78,
+      });
+    } catch (err) {
+      throw new Error(`Capítulo ${chapterNum}: ${err.message}`);
+    }
+    chapterText = String(chapterText || '').trim();
+    previousSummaries.push(chapterText.slice(0, 200));
+
+    // Save text immediately so polling shows progress
+    const ebook = product_ebooks.one({ id: ebookId });
+    const newChapters = ebook.chapters.map((c, idx) => idx === i ? { ...c, content: chapterText } : c);
+    product_ebooks.updateById(ebookId, { chapters: newChapters });
+
+    updateProgress('chapter_image', chapterNum, totalChapters + 2, `Generando imagen capítulo ${chapterNum}/${totalChapters}…`);
+    try {
+      const imgPrompt = buildImagePrompt({
+        chapterTitle,
+        chapterExcerpt: chapterText,
+        productCategory,
+      });
+      const imgBuf = await generateImage({ engine: imgDef.engine, prompt: imgPrompt, apiKey: imgKey, aspect: '4:3', modelId: imgDef.model });
+      const imgFile = saveImg(imgBuf, `ch${chapterNum}`);
+      const eb2 = product_ebooks.one({ id: ebookId });
+      const withImg = eb2.chapters.map((c, idx) => idx === i ? { ...c, image_path: imgFile } : c);
+      product_ebooks.updateById(ebookId, { chapters: withImg });
+    } catch (err) {
+      // Non-fatal: log but continue. The PDF will simply skip this chapter's image.
+      console.warn(`[ebooks] image for chapter ${chapterNum} failed: ${err.message}`);
+    }
+  }
+
+  // ─── Step 3: intro & conclusion (parallel) ───
+  updateProgress('intro_conclusion', totalChapters + 1, totalChapters + 2, 'Escribiendo introducción y conclusión…');
+
+  const introPrompt = `Escribí la INTRODUCCIÓN de un ebook tipo lead magnet titulado "${idea.title}", subtítulo "${idea.subtitle}".
+El ebook acompaña al producto: ${product.name}.
+Avatar: ${angle.avatar || '(generalista)'}.
+Problema central: ${angle.problem || idea.synopsis}.
+
+Extensión: 150-220 palabras. Tono cercano, profesional. Sin títulos. Sin markdown. 2 párrafos.
+Mencioná el producto UNA SOLA VEZ, de pasada, como "el complemento ideal" o similar.
+Cerrá con una frase que invite al lector a embarcarse en la lectura.`;
+
+  const conclusionPrompt = `Escribí la CONCLUSIÓN de un ebook tipo lead magnet titulado "${idea.title}".
+Producto asociado: ${product.name}.
+Capítulos cubiertos: ${chapterTitles.join('; ')}.
+
+Extensión: 130-180 palabras. Tono motivacional pero sobrio. 2 párrafos. Sin markdown. Sin títulos.
+Reforzá la idea de que la consistencia es lo importante.
+Animá al lector a poner en práctica lo aprendido y mencioná el producto UNA vez como "herramienta de apoyo".`;
+
+  let introText = '', conclusionText = '';
+  try {
+    [introText, conclusionText] = await Promise.all([
+      generateText({ modelId: text_model_id, apiKey: textKey, system: SYS_CHAPTER, user: introPrompt, maxTokens: 800, temperature: 0.75 }),
+      generateText({ modelId: text_model_id, apiKey: textKey, system: SYS_CHAPTER, user: conclusionPrompt, maxTokens: 800, temperature: 0.75 }),
+    ]);
+  } catch (err) {
+    console.warn('[ebooks] intro/conclusion failed:', err.message);
+  }
+
+  product_ebooks.updateById(ebookId, {
+    intro_content:      String(introText || '').trim(),
+    conclusion_content: String(conclusionText || '').trim(),
+  });
+
+  // ─── Step 4: render PDF ───
+  updateProgress('pdf', totalChapters + 2, totalChapters + 2, 'Renderizando PDF…');
+  const finalEbook = product_ebooks.one({ id: ebookId });
+  try {
+    const pdfFilename = await buildPDF(finalEbook);
+    product_ebooks.updateById(ebookId, {
+      pdf_path: pdfFilename,
+      status:   'ready',
+      progress: { step: 'done', current: totalChapters + 2, total: totalChapters + 2, message: 'Listo' },
+    });
+  } catch (err) {
+    // Mark as ready-without-pdf so the user can still preview chapters
+    product_ebooks.updateById(ebookId, {
+      status:   'ready',
+      error:    `PDF falló: ${err.message}. Los capítulos están listos — podés re-exportar.`,
+      progress: { step: 'pdf_failed', current: totalChapters + 1, total: totalChapters + 2, message: 'Capítulos listos. PDF falló — intentá re-exportar.' },
+    });
+  }
+}
+
+// Build the PDF from an ebook row. Inlines images as data URIs so Puppeteer
+// doesn't need to fetch them over HTTP.
+async function buildPDF(ebook) {
+  const inline = (filename) => {
+    if (!filename) return null;
+    const full = path.join(EBOOK_IMG_DIR, filename);
+    if (!fs.existsSync(full)) return null;
+    const buf = fs.readFileSync(full);
+    const ext = (filename.split('.').pop() || 'png').toLowerCase();
+    const mime = ext === 'jpg' || ext === 'jpeg' ? 'jpeg' : ext;
+    return `data:image/${mime};base64,${buf.toString('base64')}`;
+  };
+
+  const enriched = {
+    ...ebook,
+    cover_image_data_url:      inline(ebook.cover_image_path),
+    back_cover_image_data_url: inline(ebook.back_cover_image_path),
+    chapters: (ebook.chapters || []).map(c => ({
+      ...c,
+      image_data_url: inline(c.image_path),
+    })),
+  };
+
+  const html = buildEbookHTML(enriched);
+  const filename = `ebook_${ebook.id}_${Date.now()}.pdf`;
+  const outPath = path.join(EBOOK_PDF_DIR, filename);
+  await renderEbookPDF(html, outPath);
+  return filename;
+}
+
+module.exports = router;

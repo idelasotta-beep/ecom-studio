@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Generador de Ebooks — Ecom Studio IA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { background:#0d1117; font-family:'Inter',sans-serif; color:#e6edf3; -webkit-font-smoothing:antialiased; }
+    .grad-text { background:linear-gradient(135deg,#a78bfa,#60a5fa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .grad-btn  { background:linear-gradient(135deg,#8b5cf6,#3b82f6); }
+    .grad-btn:hover { opacity:.88; }
+    .grad-btn:disabled { opacity:.5; cursor:not-allowed; }
+    .card { background:#161b22; border:1px solid #30363d; border-radius:14px; }
+    .card-hover:hover { border-color:#8b5cf6; background:#1a1f26; }
+    .field { width:100%; padding:11px 14px; background:#1c2128; border:1px solid #30363d; border-radius:10px; color:#e6edf3; font-size:14px; outline:none; transition:border-color .2s; }
+    .field:focus { border-color:#8b5cf6; }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; background:rgba(139,92,246,.12); color:#a78bfa; font-size:11px; font-weight:600; border-radius:999px; text-transform:uppercase; letter-spacing:1px; }
+    .spinner { width:18px; height:18px; border:2px solid rgba(255,255,255,.2); border-top-color:#a78bfa; border-radius:50%; animation:spin .8s linear infinite; display:inline-block; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .progress-bar { height:6px; background:#1c2128; border-radius:999px; overflow:hidden; }
+    .progress-fill { height:100%; background:linear-gradient(90deg,#8b5cf6,#3b82f6); transition:width .4s ease; }
+    .chapter-preview { background:#1c2128; border:1px solid #30363d; border-radius:10px; padding:14px; }
+    .chapter-preview img { width:100%; height:120px; object-fit:cover; border-radius:6px; margin-bottom:10px; }
+    .toast { position:fixed; top:20px; right:20px; z-index:9999; padding:12px 18px; border-radius:12px; font-size:14px; font-weight:500; max-width:360px; opacity:0; transform:translateX(100%); transition:all .3s ease; }
+    .toast.show { opacity:1; transform:translateX(0); }
+    .toast-success { background:#1a2e1a; border:1px solid #22c55e; color:#4ade80; }
+    .toast-error   { background:#2e1a1a; border:1px solid #ef4444; color:#f87171; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+<!-- Top bar -->
+<header class="border-b border-[#30363d] px-6 py-4 flex items-center justify-between">
+  <div class="flex items-center gap-3">
+    <a href="dashboard.html" class="text-[#8b949e] hover:text-white text-sm">← Volver al dashboard</a>
+    <span class="text-[#30363d]">|</span>
+    <h1 class="text-lg font-bold grad-text">Generador de Ebooks</h1>
+  </div>
+  <div id="productLabel" class="text-sm text-[#8b949e]"></div>
+</header>
+
+<main class="max-w-5xl mx-auto px-6 py-8">
+
+  <!-- STEP 1: Configuración -->
+  <section id="step1" class="space-y-6">
+    <div>
+      <span class="pill">PASO 1 DE 3</span>
+      <h2 class="text-2xl font-bold mt-3">Configurá tu ebook</h2>
+      <p class="text-sm text-[#8b949e] mt-1">Elegí el ángulo, los modelos y la extensión. Después la IA te propone 5 ideas para elegir.</p>
+    </div>
+
+    <div class="card p-6 space-y-5">
+      <div>
+        <label class="block text-sm font-medium mb-2">Producto</label>
+        <select id="productSel" class="field"></select>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium mb-2">Ángulo de venta</label>
+        <select id="angleSel" class="field" disabled><option>Cargá un producto primero</option></select>
+        <p id="angleHint" class="text-xs text-[#8b949e] mt-2 hidden"></p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium mb-2">Modelo de texto</label>
+          <select id="textModelSel" class="field">
+            <optgroup label="Claude (Anthropic)">
+              <option value="claude-opus-4-7">Claude Opus 4.7 — mejor calidad</option>
+              <option value="claude-sonnet-4-6" selected>Claude Sonnet 4.6 — balance recomendado</option>
+              <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — más rápido y barato</option>
+            </optgroup>
+            <optgroup label="OpenAI">
+              <option value="gpt-4.1">GPT-4.1</option>
+              <option value="gpt-4o">GPT-4o</option>
+              <option value="gpt-4o-mini">GPT-4o mini</option>
+            </optgroup>
+            <optgroup label="Google">
+              <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+            </optgroup>
+            <optgroup label="Kie.ai">
+              <option value="kie:claude-sonnet-4-5">Claude Sonnet 4.5 (Kie.ai)</option>
+              <option value="kie:gpt-5-2">GPT-5.2 (Kie.ai)</option>
+            </optgroup>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2">Modelo de imágenes</label>
+          <select id="imageModelSel" class="field">
+            <option value="nano_banana_2" selected>Nano Banana 2 — rápido (Google)</option>
+            <option value="nano_banana_pro">Nano Banana Pro — mejor calidad (Google)</option>
+            <option value="gpt_image_2">GPT Image 2 — OpenAI</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium mb-2">Páginas objetivo</label>
+        <div class="grid grid-cols-5 gap-2" id="pagesGrid">
+          <button data-pages="20"  class="pages-btn field py-3 text-center cursor-pointer">20</button>
+          <button data-pages="40"  class="pages-btn field py-3 text-center cursor-pointer">40</button>
+          <button data-pages="60"  class="pages-btn field py-3 text-center cursor-pointer">60</button>
+          <button data-pages="80"  class="pages-btn field py-3 text-center cursor-pointer">80</button>
+          <button data-pages="100" class="pages-btn field py-3 text-center cursor-pointer">100</button>
+        </div>
+        <p class="text-xs text-[#8b949e] mt-2"><span id="chaptersHint">5 capítulos</span> · más páginas = más tiempo y tokens</p>
+      </div>
+
+      <button id="genIdeasBtn" class="grad-btn w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2" disabled>
+        <span id="genIdeasText">Generar 5 ideas</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- STEP 2: Selección de idea -->
+  <section id="step2" class="space-y-6 hidden">
+    <div>
+      <span class="pill">PASO 2 DE 3</span>
+      <h2 class="text-2xl font-bold mt-3">Elegí una idea</h2>
+      <p class="text-sm text-[#8b949e] mt-1">Estas son 5 propuestas generadas por la IA. Seleccioná la que más te convenza.</p>
+    </div>
+    <div id="ideasGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    <div class="flex gap-3">
+      <button id="backTo1Btn" class="px-4 py-2 rounded-lg border border-[#30363d] text-sm hover:bg-[#1a1f26]">← Volver</button>
+      <button id="regenIdeasBtn" class="px-4 py-2 rounded-lg border border-[#30363d] text-sm hover:bg-[#1a1f26]">Regenerar ideas</button>
+    </div>
+  </section>
+
+  <!-- STEP 3: Generación + preview -->
+  <section id="step3" class="space-y-6 hidden">
+    <div>
+      <span class="pill">PASO 3 DE 3</span>
+      <h2 id="ebookTitleH" class="text-2xl font-bold mt-3"></h2>
+      <p id="ebookSubH" class="text-sm text-[#8b949e] mt-1"></p>
+    </div>
+
+    <div class="card p-5">
+      <div class="flex items-center justify-between mb-3">
+        <div class="text-sm font-semibold">Progreso</div>
+        <div id="progressLabel" class="text-xs text-[#8b949e]">0%</div>
+      </div>
+      <div class="progress-bar"><div id="progressFill" class="progress-fill" style="width:0%"></div></div>
+      <div id="progressMsg" class="text-xs text-[#8b949e] mt-3">Iniciando…</div>
+    </div>
+
+    <div id="previewArea" class="space-y-5"></div>
+
+    <div id="actionsArea" class="flex flex-wrap gap-3 hidden">
+      <a id="downloadPdfBtn" class="grad-btn px-5 py-3 rounded-xl font-semibold inline-flex items-center gap-2" target="_blank">
+        ⬇ Descargar PDF
+      </a>
+      <button id="newEbookBtn" class="px-5 py-3 rounded-xl border border-[#30363d] text-sm hover:bg-[#1a1f26]">Generar otro</button>
+    </div>
+  </section>
+
+  <!-- Listado de ebooks del producto -->
+  <section id="listSection" class="mt-12 hidden">
+    <h3 class="text-lg font-bold mb-4">Ebooks de este producto</h3>
+    <div id="ebookList" class="space-y-3"></div>
+  </section>
+
+</main>
+
+<script>
+const API = '/api';
+const TOK = () => localStorage.getItem('token');
+const qs = new URLSearchParams(location.search);
+const PRODUCT_ID = qs.get('product_id') ? Number(qs.get('product_id')) : null;
+
+// Auth gate
+if (!TOK()) location.href = 'login.html';
+
+const state = {
+  product:    null,
+  products:   [],
+  angles:     [],
+  selectedAngle: null,
+  selectedPages: null,
+  ideas:      [],
+  selectedIdea: null,
+  ebookId:    null,
+  pollHandle: null,
+};
+
+function toast(msg, type='success') {
+  const div = document.createElement('div');
+  div.className = `toast toast-${type}`;
+  div.textContent = msg;
+  document.body.appendChild(div);
+  requestAnimationFrame(() => div.classList.add('show'));
+  setTimeout(() => { div.classList.remove('show'); setTimeout(() => div.remove(), 400); }, 4000);
+}
+
+async function api(path, opts={}) {
+  const r = await fetch(`${API}${path}`, {
+    ...opts,
+    headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${TOK()}`, ...(opts.headers || {}) },
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+  return data;
+}
+
+// ─── STEP 1: load products + angles ───
+async function loadProducts() {
+  const data = await api('/products');
+  state.products = data.products || [];
+  const sel = document.getElementById('productSel');
+  sel.innerHTML = state.products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  if (PRODUCT_ID) sel.value = String(PRODUCT_ID);
+  if (state.products.length === 0) {
+    sel.innerHTML = '<option>No tenés productos — creá uno desde el dashboard</option>';
+    sel.disabled = true;
+    return;
+  }
+  await onProductChange();
+}
+
+async function onProductChange() {
+  const pid = Number(document.getElementById('productSel').value);
+  state.product = state.products.find(p => p.id === pid);
+  document.getElementById('productLabel').textContent = state.product ? state.product.name : '';
+
+  // Load angles via the copys endpoint (same parser)
+  try {
+    const data = await api(`/copys/${pid}`);
+    state.angles = data.angles || [];
+  } catch (err) { state.angles = []; }
+
+  const angleSel = document.getElementById('angleSel');
+  if (state.angles.length === 0) {
+    angleSel.innerHTML = '<option>Este producto no tiene ángulos de venta generados</option>';
+    angleSel.disabled = true;
+    document.getElementById('angleHint').textContent = 'Generá ángulos primero desde el dashboard.';
+    document.getElementById('angleHint').classList.remove('hidden');
+  } else {
+    angleSel.disabled = false;
+    angleSel.innerHTML = state.angles.map(a => `<option value="${a.uid}">${a.num}. ${a.title}</option>`).join('');
+    state.selectedAngle = state.angles[0];
+    document.getElementById('angleHint').classList.add('hidden');
+  }
+
+  updateValid();
+  loadEbookList();
+}
+
+document.getElementById('productSel').addEventListener('change', onProductChange);
+document.getElementById('angleSel').addEventListener('change', e => {
+  state.selectedAngle = state.angles.find(a => a.uid === e.target.value);
+  updateValid();
+});
+
+// pages buttons
+document.querySelectorAll('.pages-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.pages-btn').forEach(b => b.style.borderColor = '#30363d');
+    btn.style.borderColor = '#8b5cf6';
+    state.selectedPages = Number(btn.dataset.pages);
+    const chapters = Math.max(3, Math.round(state.selectedPages / 4));
+    document.getElementById('chaptersHint').textContent = `${chapters} capítulos`;
+    updateValid();
+  });
+});
+
+function updateValid() {
+  const ok = state.selectedAngle && state.selectedPages && document.getElementById('textModelSel').value && document.getElementById('imageModelSel').value;
+  document.getElementById('genIdeasBtn').disabled = !ok;
+}
+document.getElementById('textModelSel').addEventListener('change', updateValid);
+document.getElementById('imageModelSel').addEventListener('change', updateValid);
+
+// ─── Generate ideas ───
+document.getElementById('genIdeasBtn').addEventListener('click', generateIdeas);
+async function generateIdeas() {
+  const btn = document.getElementById('genIdeasBtn');
+  btn.disabled = true;
+  document.getElementById('genIdeasText').innerHTML = '<span class="spinner"></span> Generando ideas…';
+  try {
+    const data = await api(`/ebooks/products/${state.product.id}/ideas`, {
+      method: 'POST',
+      body: JSON.stringify({
+        angle_uid:     state.selectedAngle.uid,
+        text_model_id: document.getElementById('textModelSel').value,
+        pages:         state.selectedPages,
+      }),
+    });
+    state.ideas = data.ideas;
+    renderIdeas();
+    showStep(2);
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    document.getElementById('genIdeasText').textContent = 'Generar 5 ideas';
+  }
+}
+
+document.getElementById('regenIdeasBtn').addEventListener('click', generateIdeas);
+document.getElementById('backTo1Btn').addEventListener('click', () => showStep(1));
+
+function renderIdeas() {
+  const grid = document.getElementById('ideasGrid');
+  grid.innerHTML = state.ideas.map((idea, i) => `
+    <div class="card card-hover p-5 cursor-pointer transition" data-idx="${i}">
+      <div class="text-xs text-[#8b949e] mb-2">IDEA ${i + 1}</div>
+      <h3 class="text-base font-bold mb-1">${escapeHtml(idea.title || '')}</h3>
+      <div class="text-sm text-[#8b949e] mb-3">${escapeHtml(idea.subtitle || '')}</div>
+      <p class="text-sm text-[#c9d1d9] mb-4">${escapeHtml(idea.synopsis || '')}</p>
+      <div class="text-xs font-semibold text-[#8b949e] mb-2">CAPÍTULOS</div>
+      <ul class="text-xs text-[#c9d1d9] space-y-1 mb-4">
+        ${(idea.chapter_titles || []).slice(0, 6).map((t, k) => `<li>${k + 1}. ${escapeHtml(t)}</li>`).join('')}
+        ${(idea.chapter_titles || []).length > 6 ? `<li class="text-[#8b949e]">… +${idea.chapter_titles.length - 6} más</li>` : ''}
+      </ul>
+      <button class="grad-btn w-full py-2 rounded-lg text-sm font-semibold">Usar esta idea</button>
+    </div>
+  `).join('');
+  grid.querySelectorAll('[data-idx]').forEach(card => {
+    card.addEventListener('click', () => {
+      state.selectedIdea = state.ideas[Number(card.dataset.idx)];
+      startGeneration();
+    });
+  });
+}
+
+// ─── STEP 3: generation + polling ───
+async function startGeneration() {
+  showStep(3);
+  document.getElementById('ebookTitleH').textContent = state.selectedIdea.title;
+  document.getElementById('ebookSubH').textContent   = state.selectedIdea.subtitle || '';
+  document.getElementById('previewArea').innerHTML   = '';
+  document.getElementById('actionsArea').classList.add('hidden');
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('progressLabel').textContent = '0%';
+  document.getElementById('progressMsg').textContent = 'Iniciando…';
+
+  try {
+    const data = await api(`/ebooks/products/${state.product.id}/generate`, {
+      method: 'POST',
+      body: JSON.stringify({
+        angle_uid:      state.selectedAngle.uid,
+        text_model_id:  document.getElementById('textModelSel').value,
+        image_model_id: document.getElementById('imageModelSel').value,
+        pages:          state.selectedPages,
+        idea:           state.selectedIdea,
+      }),
+    });
+    state.ebookId = data.id;
+    startPolling();
+  } catch (err) {
+    toast(err.message, 'error');
+    showStep(2);
+  }
+}
+
+function startPolling() {
+  if (state.pollHandle) clearInterval(state.pollHandle);
+  const poll = async () => {
+    try {
+      const data = await api(`/ebooks/${state.ebookId}`);
+      renderProgress(data.ebook);
+      if (data.ebook.status === 'ready' || data.ebook.status === 'failed') {
+        clearInterval(state.pollHandle);
+        state.pollHandle = null;
+        onGenerationFinished(data.ebook);
+      }
+    } catch (err) { console.warn('poll error:', err.message); }
+  };
+  poll();
+  state.pollHandle = setInterval(poll, 4000);
+}
+
+function renderProgress(ebook) {
+  const pct = ebook.progress.total > 0 ? Math.round((ebook.progress.current / ebook.progress.total) * 100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = pct + '%';
+  document.getElementById('progressMsg').textContent = ebook.progress.message || ebook.progress.step;
+
+  // Render chapters as they come in
+  const preview = document.getElementById('previewArea');
+  const blocks = (ebook.chapters || []).filter(c => c.content || c.image_url).map((c, i) => `
+    <div class="chapter-preview">
+      ${c.image_url ? `<img src="${c.image_url}" alt="">` : ''}
+      <div class="text-xs text-[#8b949e] mb-1">CAPÍTULO ${i + 1}</div>
+      <h4 class="text-base font-bold mb-2">${escapeHtml(c.title || '')}</h4>
+      ${c.content ? `<p class="text-sm text-[#c9d1d9] whitespace-pre-line">${escapeHtml(c.content.slice(0, 300))}${c.content.length > 300 ? '…' : ''}</p>` : '<div class="text-xs text-[#8b949e]"><span class="spinner"></span> Escribiendo…</div>'}
+    </div>
+  `).join('');
+  preview.innerHTML = blocks;
+}
+
+function onGenerationFinished(ebook) {
+  if (ebook.status === 'failed') {
+    toast('La generación falló: ' + (ebook.error || 'error desconocido'), 'error');
+    document.getElementById('progressMsg').textContent = '❌ ' + (ebook.error || 'Falló la generación');
+    return;
+  }
+  toast('¡Ebook listo!', 'success');
+  document.getElementById('progressMsg').textContent = '✅ Ebook listo';
+  const actions = document.getElementById('actionsArea');
+  actions.classList.remove('hidden');
+  if (ebook.pdf_url) {
+    document.getElementById('downloadPdfBtn').href = ebook.pdf_url;
+    document.getElementById('downloadPdfBtn').textContent = '⬇ Descargar PDF';
+  } else {
+    document.getElementById('downloadPdfBtn').href = '#';
+    document.getElementById('downloadPdfBtn').textContent = '⚠ PDF no disponible';
+    if (ebook.error) toast(ebook.error, 'error');
+  }
+  loadEbookList();
+}
+
+document.getElementById('newEbookBtn').addEventListener('click', () => {
+  state.selectedIdea = null;
+  state.ebookId = null;
+  showStep(1);
+});
+
+// ─── Listing ───
+async function loadEbookList() {
+  if (!state.product) return;
+  try {
+    const data = await api(`/ebooks/by-product/${state.product.id}`);
+    const sec = document.getElementById('listSection');
+    const list = document.getElementById('ebookList');
+    if (!data.ebooks || data.ebooks.length === 0) { sec.classList.add('hidden'); return; }
+    sec.classList.remove('hidden');
+    list.innerHTML = data.ebooks.map(e => `
+      <div class="card p-4 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          ${e.cover_image_url ? `<img src="${e.cover_image_url}" class="w-12 h-16 object-cover rounded shrink-0">` : '<div class="w-12 h-16 rounded bg-[#1c2128] shrink-0"></div>'}
+          <div class="min-w-0">
+            <div class="font-semibold truncate">${escapeHtml(e.title)}</div>
+            <div class="text-xs text-[#8b949e] truncate">${escapeHtml(e.subtitle || '')}</div>
+            <div class="text-[10px] text-[#8b949e] mt-1">${e.pages_target} págs · ${e.status === 'ready' ? '✅' : e.status === 'failed' ? '❌ falló' : '⏳ generando'} · ${new Date(e.created_at).toLocaleDateString()}</div>
+          </div>
+        </div>
+        <div class="flex gap-2 shrink-0">
+          ${e.pdf_url ? `<a href="${e.pdf_url}" target="_blank" class="px-3 py-1.5 text-xs grad-btn rounded-lg font-semibold">PDF</a>` : ''}
+          <button data-del="${e.id}" class="px-3 py-1.5 text-xs border border-[#30363d] rounded-lg hover:bg-[#2e1a1a] hover:border-red-500">✕</button>
+        </div>
+      </div>
+    `).join('');
+    list.querySelectorAll('[data-del]').forEach(b => {
+      b.addEventListener('click', async () => {
+        if (!confirm('¿Eliminar este ebook? No se puede deshacer.')) return;
+        try { await api(`/ebooks/${b.dataset.del}`, { method: 'DELETE' }); loadEbookList(); }
+        catch (err) { toast(err.message, 'error'); }
+      });
+    });
+  } catch (_) {}
+}
+
+function showStep(n) {
+  ['step1', 'step2', 'step3'].forEach((s, i) => {
+    document.getElementById(s).classList.toggle('hidden', i + 1 !== n);
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ─── Init ───
+loadProducts().catch(err => toast(err.message, 'error'));
+</script>
+</body>
+</html>

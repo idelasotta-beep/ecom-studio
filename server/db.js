@@ -10,13 +10,13 @@ const DB_FILE = dbFile();
 
 const DEFAULTS = {
   users: [], user_settings: [],
-  products: [], product_research: [], product_angles: [], product_ads: [], product_landings: [], product_assembled_landings: [], product_descriptions: [], product_audios: [], product_pricings: [], product_copys: [], product_testimonials: [], product_mockups: [], product_logos: [],
+  products: [], product_research: [], product_angles: [], product_ads: [], product_landings: [], product_assembled_landings: [], product_descriptions: [], product_audios: [], product_pricings: [], product_copys: [], product_testimonials: [], product_mockups: [], product_logos: [], product_ebooks: [],
   text_to_image_outputs: [],
   shopify_connections: [],
   ad_templates: [],
   meta_spy_searches: [], meta_spy_ads: [], meta_spy_folders: [], meta_spy_saved: [], meta_spy_competitors: [],
   tiktok_spy_searches: [], tiktok_spy_products: [], tiktok_spy_folders: [], tiktok_spy_saved: [],
-  _seq: { users: 0, products: 0, product_research: 0, product_angles: 0, product_ads: 0, product_landings: 0, product_assembled_landings: 0, product_descriptions: 0, product_audios: 0, product_pricings: 0, product_copys: 0, product_testimonials: 0, product_mockups: 0, product_logos: 0, text_to_image_outputs: 0, shopify_connections: 0, ad_templates: 0, meta_spy_searches: 0, meta_spy_ads: 0, meta_spy_folders: 0, meta_spy_saved: 0, meta_spy_competitors: 0, tiktok_spy_searches: 0, tiktok_spy_products: 0, tiktok_spy_folders: 0, tiktok_spy_saved: 0 },
+  _seq: { users: 0, products: 0, product_research: 0, product_angles: 0, product_ads: 0, product_landings: 0, product_assembled_landings: 0, product_descriptions: 0, product_audios: 0, product_pricings: 0, product_copys: 0, product_testimonials: 0, product_mockups: 0, product_logos: 0, product_ebooks: 0, text_to_image_outputs: 0, shopify_connections: 0, ad_templates: 0, meta_spy_searches: 0, meta_spy_ads: 0, meta_spy_folders: 0, meta_spy_saved: 0, meta_spy_competitors: 0, tiktok_spy_searches: 0, tiktok_spy_products: 0, tiktok_spy_folders: 0, tiktok_spy_saved: 0 },
 };
 
 function load() {
@@ -187,6 +187,7 @@ const products = {
     db.product_pricings     = (db.product_pricings     || []).filter(r => r.product_id != id);
     db.product_mockups      = (db.product_mockups      || []).filter(r => r.product_id != id);
     db.product_logos        = (db.product_logos        || []).filter(r => r.product_id != id);
+    db.product_ebooks       = (db.product_ebooks       || []).filter(r => r.product_id != id);
     save(db);
     return db.products.length < before;
   },
@@ -418,6 +419,111 @@ const product_logos = {
   },
   one(filter) {
     return (load().product_logos || []).find(r => Object.entries(filter).every(([k,v]) => r[k] == v)) || null;
+  },
+};
+
+// ── Product Ebooks (lead-magnet PDFs generated from angles) ───────
+// Schema:
+//   id, user_id, product_id, status ('generating'|'ready'|'failed'),
+//   title, subtitle, intro_content, conclusion_content,
+//   angle_ref, angle_content (snapshot), pages_target,
+//   text_model, text_provider, image_model,
+//   chapters: [{ id, num, title, content, image_path }],
+//   cover_image_path, back_cover_image_path,
+//   pdf_path, theme_color,
+//   progress: { step, current, total, message },
+//   error,
+//   created_at, updated_at
+const product_ebooks = {
+  forProduct(productId) {
+    return (load().product_ebooks || [])
+      .filter(r => r.product_id == productId)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  },
+  forUser(userId) {
+    return (load().product_ebooks || [])
+      .filter(r => r.user_id == userId)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  },
+  one(filter) {
+    return (load().product_ebooks || []).find(r => Object.entries(filter).every(([k, v]) => r[k] == v)) || null;
+  },
+  insert(data) {
+    const db = load();
+    if (!db.product_ebooks) db.product_ebooks = [];
+    const id = nextId(db, 'product_ebooks');
+    const t = now();
+    const row = {
+      id,
+      user_id:               data.user_id,
+      product_id:            data.product_id,
+      status:                data.status || 'generating',
+      title:                 data.title || '',
+      subtitle:              data.subtitle || '',
+      intro_content:         data.intro_content || '',
+      conclusion_content:    data.conclusion_content || '',
+      angle_ref:             data.angle_ref || null,
+      angle_content:         data.angle_content || null,
+      pages_target:          data.pages_target || 20,
+      text_model:            data.text_model || null,
+      text_provider:         data.text_provider || null,
+      image_model:           data.image_model || null,
+      chapters:              Array.isArray(data.chapters) ? data.chapters : [],
+      cover_image_path:      data.cover_image_path || null,
+      back_cover_image_path: data.back_cover_image_path || null,
+      pdf_path:              data.pdf_path || null,
+      theme_color:           data.theme_color || '#2d8b6f',
+      progress:              data.progress || { step: 'init', current: 0, total: 0, message: '' },
+      error:                 data.error || null,
+      created_at:            t,
+      updated_at:            t,
+    };
+    db.product_ebooks.push(row);
+    save(db);
+    return row;
+  },
+  update(id, userId, changes) {
+    const db = load();
+    if (!db.product_ebooks) db.product_ebooks = [];
+    const idx = db.product_ebooks.findIndex(r => r.id == id && r.user_id == userId);
+    if (idx === -1) return null;
+    Object.assign(db.product_ebooks[idx], changes, { updated_at: now() });
+    save(db);
+    return db.product_ebooks[idx];
+  },
+  // Quick partial update for the async generation job (avoids needing user_id scope).
+  updateById(id, changes) {
+    const db = load();
+    if (!db.product_ebooks) db.product_ebooks = [];
+    const idx = db.product_ebooks.findIndex(r => r.id == id);
+    if (idx === -1) return null;
+    Object.assign(db.product_ebooks[idx], changes, { updated_at: now() });
+    save(db);
+    return db.product_ebooks[idx];
+  },
+  delete(id, userId) {
+    const db = load();
+    if (!db.product_ebooks) db.product_ebooks = [];
+    const before = db.product_ebooks.length;
+    db.product_ebooks = db.product_ebooks.filter(r => !(r.id == id && r.user_id == userId));
+    save(db);
+    return db.product_ebooks.length < before;
+  },
+  // Recovery on server restart: any ebook left mid-generation should be marked failed.
+  markStaleAsFailed() {
+    const db = load();
+    if (!db.product_ebooks) return 0;
+    let count = 0;
+    db.product_ebooks.forEach(r => {
+      if (r.status === 'generating') {
+        r.status = 'failed';
+        r.error = 'Generación interrumpida por reinicio del servidor';
+        r.updated_at = now();
+        count++;
+      }
+    });
+    if (count > 0) save(db);
+    return count;
   },
 };
 
@@ -1319,4 +1425,4 @@ const tiktok_spy_saved = {
   },
 };
 
-module.exports = { users, user_settings, products, product_research, product_angles, product_ads, product_landings, product_assembled_landings, product_descriptions, product_audios, product_pricings, product_copys, product_testimonials, product_mockups, product_logos, text_to_image_outputs, shopify_connections, ad_templates, LANDING_CATEGORIES, meta_spy_searches, meta_spy_ads, meta_spy_folders, meta_spy_saved, meta_spy_competitors, tiktok_spy_searches, tiktok_spy_products, tiktok_spy_folders, tiktok_spy_saved };
+module.exports = { users, user_settings, products, product_research, product_angles, product_ads, product_landings, product_assembled_landings, product_descriptions, product_audios, product_pricings, product_copys, product_testimonials, product_mockups, product_logos, product_ebooks, text_to_image_outputs, shopify_connections, ad_templates, LANDING_CATEGORIES, meta_spy_searches, meta_spy_ads, meta_spy_folders, meta_spy_saved, meta_spy_competitors, tiktok_spy_searches, tiktok_spy_products, tiktok_spy_folders, tiktok_spy_saved };
