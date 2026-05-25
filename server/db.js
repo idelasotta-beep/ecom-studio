@@ -1099,7 +1099,7 @@ const user_settings = {
     const db = load();
     const idx = db.user_settings.findIndex(r => r.user_id == userId);
     if (idx === -1) {
-      db.user_settings.push({ user_id: userId, claude_key: null, gemini_key: null, openai_key: null, kieai_key: null, ...changes, updated_at: now() });
+      db.user_settings.push({ user_id: userId, claude_key: null, gemini_key: null, openai_key: null, kieai_key: null, elevenlabs_key: null, ...changes, updated_at: now() });
     } else {
       Object.assign(db.user_settings[idx], changes, { updated_at: now() });
     }

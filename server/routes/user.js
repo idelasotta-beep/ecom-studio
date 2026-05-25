@@ -5,7 +5,7 @@ const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 router.use(requireAuth);
 
-const ALLOWED_KEYS = ['claude_key', 'gemini_key', 'openai_key', 'kieai_key', 'apify_key'];
+const ALLOWED_KEYS = ['claude_key', 'gemini_key', 'openai_key', 'kieai_key', 'apify_key', 'elevenlabs_key'];
 
 // ── GET /api/user/settings ───────────────────────────────────────
 router.get('/settings', (req, res) => {

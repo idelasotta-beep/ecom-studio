@@ -6271,6 +6271,31 @@ html.light .api-input { background:#f8fafc; }
           <div class="api-hint">Obtén tu clave en <span class="api-link">console.apify.com/account/integrations</span> · Requiere plan con proxies residenciales</div>
         </div>
 
+        <!-- ElevenLabs (audios de voz) -->
+        <div class="api-card" id="apicard-elevenlabs">
+          <div class="api-card-head">
+            <div class="api-logo" style="background:linear-gradient(135deg,#0f172a,#475569)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            </div>
+            <div class="api-info">
+              <div class="api-name">ElevenLabs <span class="api-model-hint">Síntesis de voz · Notas de WhatsApp</span></div>
+              <div class="api-desc">Convierte los scripts en audios reales con voces hiperrealistas para tus campañas y embudos.</div>
+            </div>
+            <div class="api-status" id="status-elevenlabs"><span class="dot"></span><span class="lbl">No configurada</span></div>
+          </div>
+          <div class="api-field-row">
+            <div class="api-field-wrap">
+              <input class="api-input" type="password" id="key-elevenlabs" placeholder="sk_..." autocomplete="off" spellcheck="false"/>
+              <button class="api-eye" onclick="toggleKeyVis('key-elevenlabs',this)" title="Mostrar/ocultar">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <button class="api-save-btn" onclick="saveApiKey('elevenlabs')">Guardar</button>
+            <button class="api-clear-btn" onclick="clearApiKey('elevenlabs')" title="Eliminar clave">✕</button>
+          </div>
+          <div class="api-hint">Obtén tu clave en <span class="api-link">elevenlabs.io/app/settings/api-keys</span></div>
+        </div>
+
       </div><!-- /stg-apis -->
 
       <!-- INTEGRACIONES TAB -->
@@ -7800,7 +7825,7 @@ function stgTab(name, el) {
 async function loadApiKeys() {
   const data = await apiFetch('/user/settings');
   if (!data) return;
-  const map = { claude: 'claude_key', gemini: 'gemini_key', openai: 'openai_key', kieai: 'kieai_key', apify: 'apify_key' };
+  const map = { claude: 'claude_key', gemini: 'gemini_key', openai: 'openai_key', kieai: 'kieai_key', apify: 'apify_key', elevenlabs: 'elevenlabs_key' };
   for (const [provider, field] of Object.entries(map)) {
     const isSet = data[field + '_set'];
     const inp   = document.getElementById('key-' + provider);
@@ -7822,7 +7847,7 @@ async function loadApiKeys() {
 }
 
 function getPlaceholder(p) {
-  return { claude:'sk-ant-api03-...', gemini:'AIzaSy...', openai:'sk-proj-...', kieai:'kie-...', apify:'apify_api_...' }[p] || '...';
+  return { claude:'sk-ant-api03-...', gemini:'AIzaSy...', openai:'sk-proj-...', kieai:'kie-...', apify:'apify_api_...', elevenlabs:'sk_...' }[p] || '...';
 }
 
 async function saveApiKey(provider) {
@@ -7867,7 +7892,7 @@ function toggleKeyVis(inputId, btn) {
 }
 
 function providerLabel(p) {
-  return { claude:'Claude', gemini:'Gemini', openai:'OpenAI', kieai:'Kie.ai' }[p] || p;
+  return { claude:'Claude', gemini:'Gemini', openai:'OpenAI', kieai:'Kie.ai', apify:'Apify', elevenlabs:'ElevenLabs' }[p] || p;
 }
 
 /* ── Product Research ─────────────────────────────────────────── */
