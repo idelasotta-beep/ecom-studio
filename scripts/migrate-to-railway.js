@@ -12,9 +12,12 @@
  *   $env:FOLDERS = "ads,landings,mockups,logos"   (default — saltea ad-templates y meta-ads)
  *   $env:SKIP_DB = "1"                            (no resubir la DB, solo media)
  *   $env:SKIP_MEDIA = "1"                         (solo DB)
+ *   $env:PATCH_ADMIN = "1"                        (reemplaza el password/email del admin id=1
+ *                                                  con ADMIN_EMAIL/ADMIN_PASSWORD antes de subir)
  */
-const fs   = require('fs');
-const path = require('path');
+const fs     = require('fs');
+const path   = require('path');
+const bcrypt = require('bcryptjs');
 
 const BASE     = (process.env.RAILWAY_URL || '').replace(/\/$/, '');
 const EMAIL    = process.env.ADMIN_EMAIL;
@@ -56,12 +59,25 @@ async function status(token) {
 
 async function uploadDb(token) {
   if (!fs.existsSync(DB_PATH)) { console.log('⚠️  No hay DB local en', DB_PATH); return; }
-  const raw = fs.readFileSync(DB_PATH, 'utf8');
-  console.log(`→ Subiendo DB (${(raw.length / 1024).toFixed(1)} KB)...`);
+  let payload = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+
+  if (process.env.PATCH_ADMIN === '1') {
+    const adminIdx = payload.users.findIndex(u => u.role === 'admin');
+    if (adminIdx === -1) throw new Error('PATCH_ADMIN=1 pero no hay admin en la DB local');
+    const hash = bcrypt.hashSync(PASSWORD, 10);
+    const before = { email: payload.users[adminIdx].email };
+    payload.users[adminIdx].email    = EMAIL.toLowerCase().trim();
+    payload.users[adminIdx].password = hash;
+    payload.users[adminIdx].updated_at = new Date().toISOString();
+    console.log(`→ Patch admin: ${before.email} → ${EMAIL}`);
+  }
+
+  const body = JSON.stringify(payload);
+  console.log(`→ Subiendo DB (${(body.length / 1024).toFixed(1)} KB)...`);
   const res = await fetch(`${BASE}/api/restore/db`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-    body: raw,
+    body,
   });
   if (!res.ok) throw new Error(`DB upload falló (${res.status}): ${await res.text()}`);
   console.log('✅ DB subida:', await res.json());
@@ -97,14 +113,21 @@ async function uploadMedia(token, folder, existingFiles) {
 
 (async () => {
   console.log('🔐 Login...');
-  const token = await login();
+  let token = await login();
   console.log('✅ Logueado como admin');
 
   console.log('\n📊 Estado actual del volumen Railway:');
   const before = await status(token);
   console.log(JSON.stringify(before, null, 2));
 
-  if (!SKIP_DB) await uploadDb(token);
+  if (!SKIP_DB) {
+    await uploadDb(token);
+    // Re-login después del DB replace: el admin de la DB recién subida puede
+    // tener distinto password/email que el de seedAdmin, y el token anterior
+    // se invalida implícitamente.
+    console.log('\n🔐 Re-login tras DB upload...');
+    token = await login();
+  }
 
   if (!SKIP_MEDIA) {
     // Obtener lista actual del server por carpeta para saltear archivos ya subidos

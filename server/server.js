@@ -81,8 +81,6 @@ app.use('/api/pricing',      require('./routes/pricing'));
 app.use('/api/meta-spy',     require('./routes/meta-spy'));
 app.use('/api/tiktok-spy',   require('./routes/tiktok-spy'));
 app.use('/api/my-templates', require('./routes/my-templates'));
-// TEMP — eliminar después de migrar la data local a Railway:
-app.use('/api/restore',      require('./routes/restore'));
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
