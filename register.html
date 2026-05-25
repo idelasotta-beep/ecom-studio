@@ -272,7 +272,7 @@
 </div>
 
 <script>
-  const API = 'http://localhost:3000/api';
+  const API = '/api';
 
   function togglePw(id, btnId) {
     const el = document.getElementById(id);
@@ -359,7 +359,7 @@
         setTimeout(() => window.location.href = 'dashboard.html', 1500);
       }
     } catch {
-      showToast('No se pudo conectar con el servidor. ¿Está corriendo en localhost:3000?', 'error');
+      showToast('No se pudo conectar con el servidor. Intentá de nuevo.', 'error');
     } finally {
       setLoading(false);
     }
