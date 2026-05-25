@@ -9667,18 +9667,96 @@ function ebRenderProgress(ebook) {
   document.getElementById('eb-progress-label').textContent = pct + '%';
   document.getElementById('eb-progress-msg').textContent = ebook.progress.message || ebook.progress.step;
 
+  // Mostrar botón Regenerar solo cuando el ebook NO está generándose ahora mismo
+  // (regenerar un cap durante la generación inicial puede chocar con el job de fondo)
+  const canRegen = ebook.status !== 'generating';
+
   const preview = document.getElementById('eb-preview-area');
   const blocks = (ebook.chapters || []).filter(c => c.content || c.image_url).map((c, i) => `
-    <div class="eb-chapter-preview">
+    <div class="eb-chapter-preview" id="eb-ch-${c.id}">
       ${c.image_url ? `<img src="${c.image_url}" alt="">` : ''}
-      <div class="eb-chapter-preview-num">CAPÍTULO ${i + 1}</div>
-      <div class="eb-chapter-preview-title">${esc(c.title || '')}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div>
+          <div class="eb-chapter-preview-num">CAPÍTULO ${i + 1}</div>
+          <div class="eb-chapter-preview-title">${esc(c.title || '')}</div>
+        </div>
+        ${canRegen && c.content ? `<button class="eb-mini-btn" onclick="ebRegenerateChapter(${c.id})" title="Re-generar este capítulo con la IA">↻ Regenerar</button>` : ''}
+      </div>
       ${c.content
-        ? `<div class="eb-chapter-preview-text">${esc(c.content.slice(0, 300))}${c.content.length > 300 ? '…' : ''}</div>`
-        : '<div style="font-size:11px;color:var(--muted)"><span class="eb-spinner"></span> Escribiendo…</div>'}
+        ? `<div class="eb-chapter-preview-text" style="margin-top:8px">${esc(c.content.slice(0, 300))}${c.content.length > 300 ? '…' : ''}</div>`
+        : '<div style="font-size:11px;color:var(--muted);margin-top:8px"><span class="eb-spinner"></span> Escribiendo…</div>'}
     </div>
   `).join('');
   preview.innerHTML = blocks;
+}
+
+async function ebRegenerateChapter(chapterId) {
+  if (!ebState.ebookId) return;
+  const card = document.getElementById('eb-ch-' + chapterId);
+  if (card) {
+    const btn = card.querySelector('button');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="eb-spinner"></span> Regenerando…'; }
+  }
+  try {
+    const r = await apiFetch('/ebooks/' + ebState.ebookId + '/regenerate-chapter', {
+      method: 'POST',
+      body: JSON.stringify({ chapter_id: chapterId }),
+    });
+    if (!r || r.error) throw new Error(r && r.error || 'Error');
+
+    // Refrescar el ebook completo y avisar que el PDF quedó desactualizado
+    const fresh = await apiFetch('/ebooks/' + ebState.ebookId);
+    if (fresh && fresh.ebook) ebRenderProgress(fresh.ebook);
+    ebMarkPdfStale();
+    showToast('Capítulo regenerado — re-exporta el PDF cuando termines de editar');
+  } catch (err) {
+    showToast('Error al regenerar: ' + err.message);
+    if (card) {
+      const btn = card.querySelector('button');
+      if (btn) { btn.disabled = false; btn.innerHTML = '↻ Regenerar'; }
+    }
+  }
+}
+
+// Indica visualmente que el PDF actual ya no refleja el contenido
+function ebMarkPdfStale() {
+  const dl = document.getElementById('eb-download-pdf-btn');
+  if (!dl) return;
+  dl.href = '#';
+  dl.textContent = '⚠ PDF desactualizado';
+  ebShowExportBtn();
+}
+
+function ebShowExportBtn() {
+  const actions = document.getElementById('eb-actions-area');
+  actions.style.display = 'flex';
+  if (document.getElementById('eb-export-btn')) return;
+  const exp = document.createElement('button');
+  exp.id = 'eb-export-btn';
+  exp.className = 'eb-download-btn';
+  exp.style.background = 'linear-gradient(135deg,#10b981,#3b82f6)';
+  exp.textContent = '🖨 Re-exportar PDF';
+  exp.onclick = ebExportPdf;
+  actions.insertBefore(exp, actions.firstChild);
+}
+
+async function ebExportPdf() {
+  if (!ebState.ebookId) return;
+  const btn = document.getElementById('eb-export-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="eb-spinner"></span> Renderizando PDF…'; }
+  try {
+    const r = await apiFetch('/ebooks/' + ebState.ebookId + '/export-pdf', { method: 'POST' });
+    if (!r || r.error) throw new Error(r && r.error || 'Error');
+    const dl = document.getElementById('eb-download-pdf-btn');
+    dl.href = r.pdf_url;
+    dl.textContent = '⬇ Descargar PDF';
+    if (btn) btn.remove();
+    showToast('PDF re-exportado');
+    ebLoadSavedList();
+  } catch (err) {
+    showToast('Error al exportar PDF: ' + err.message);
+    if (btn) { btn.disabled = false; btn.innerHTML = '🖨 Re-exportar PDF'; }
+  }
 }
 
 function ebOnGenerationFinished(ebook) {
@@ -9734,7 +9812,7 @@ async function ebLoadSavedList() {
         ${errorRow}
       </div>
       <div class="eb-saved-actions">
-        ${e.status === 'generating' ? `<button class="eb-mini-btn" onclick="ebOpenProgress(${e.id})">Ver progreso</button>` : ''}
+        <button class="eb-mini-btn" onclick="ebOpenEbook(${e.id})">${e.status === 'generating' ? 'Ver progreso' : 'Abrir'}</button>
         ${e.can_resume ? `<button class="eb-mini-btn eb-mini-btn-primary" onclick="ebResume(${e.id})">Reanudar</button>` : ''}
         ${e.pdf_url ? `<a href="${e.pdf_url}" target="_blank" class="eb-mini-btn eb-mini-btn-primary">PDF</a>` : ''}
         <button class="eb-mini-btn eb-mini-btn-danger" onclick="ebDelete(${e.id})">✕</button>
@@ -9764,16 +9842,25 @@ async function ebResume(ebookId) {
   showToast('Reanudando ebook…');
 }
 
-async function ebOpenProgress(ebookId) {
-  // Si un ebook está generando, abre la vista de progreso y conecta el polling
+async function ebOpenEbook(ebookId) {
+  // Abre un ebook (cualquier status). Si está generándose, conecta el polling.
+  // Si está listo, muestra el preview con botones de regenerar capítulo.
   const data = await apiFetch('/ebooks/' + ebookId);
-  if (!data || !data.ebook) return;
-  document.getElementById('eb-ebook-title').textContent = data.ebook.title;
-  document.getElementById('eb-ebook-sub').textContent   = data.ebook.subtitle || '';
-  document.getElementById('eb-actions-area').style.display = 'none';
+  if (!data || !data.ebook) { showToast('Ebook no encontrado'); return; }
+  const e = data.ebook;
+  document.getElementById('eb-ebook-title').textContent = e.title;
+  document.getElementById('eb-ebook-sub').textContent   = e.subtitle || '';
+  // Borrar el botón de re-export si quedó de una sesión anterior
+  const oldExp = document.getElementById('eb-export-btn');
+  if (oldExp) oldExp.remove();
   ebState.ebookId = ebookId;
   ebGoToStep(3);
-  ebStartPolling();
+  ebRenderProgress(e);
+  if (e.status === 'generating') {
+    ebStartPolling();
+  } else {
+    ebOnGenerationFinished(e);
+  }
 }
 
 async function ebDelete(ebookId) {

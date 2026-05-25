@@ -487,6 +487,104 @@ router.get('/:id', (req, res) => {
   res.json({ ebook: safe });
 });
 
+// POST /api/ebooks/:id/regenerate-chapter → re-genera texto + imagen de UN capítulo
+// Body: { chapter_id }. Devuelve el chapter actualizado. Invalida el pdf_path actual
+// (el usuario tiene que volver a exportar).
+router.post('/:id/regenerate-chapter', async (req, res) => {
+  const e = product_ebooks.one({ id: Number(req.params.id), user_id: req.user.id });
+  if (!e) return res.status(404).json({ error: 'Ebook no encontrado' });
+  if (e.status === 'generating') return res.status(409).json({ error: 'No puedes regenerar mientras el ebook se está generando' });
+
+  const { chapter_id } = req.body;
+  const idx = (e.chapters || []).findIndex(c => c.id == chapter_id);
+  if (idx === -1) return res.status(404).json({ error: 'Capítulo no encontrado' });
+
+  if (!e.text_model_id || !e.image_model_id || !e.angle_data || !e.idea_data) {
+    return res.status(409).json({ error: 'Este ebook no tiene los snapshots necesarios para regenerar (fue creado antes de fase 2)' });
+  }
+
+  const textDef = TEXT_MODELS[e.text_model_id];
+  const imgDef  = IMAGE_MODELS[e.image_model_id];
+  if (!textDef || !imgDef) return res.status(400).json({ error: 'Los modelos usados ya no están disponibles' });
+
+  const textKey = keyFor(req.user.id, e.text_model_id);
+  const imgKey  = keyFor(req.user.id, e.image_model_id, true);
+  if (!textKey) return res.status(402).json({ error: `Configura tu API key de ${textDef.provider} en Ajustes → APIs` });
+  if (!imgKey)  return res.status(402).json({ error: `Configura tu API key de ${imgDef.engine === 'openai' ? 'OpenAI' : 'Google'} en Ajustes → APIs` });
+
+  const product = products.one({ id: e.product_id, user_id: req.user.id });
+  if (!product) return res.status(404).json({ error: 'Producto no encontrado' });
+
+  const chapter = e.chapters[idx];
+  const chapterTitles = e.chapters.map(c => c.title);
+  const totalChapters = e.chapters.length;
+  const productCategory = product.description ? product.description.slice(0, 120) : product.name;
+
+  // Limpiar imagen anterior para no dejar huérfanos en el volumen
+  if (chapter.image_path) {
+    try { fs.unlinkSync(path.join(EBOOK_IMG_DIR, chapter.image_path)); } catch (_) {}
+  }
+
+  // Construir el prompt usando el resumen de capítulos previos (no sucesivos —
+  // para evitar feedback loop con su propio output viejo)
+  const previousSummary = e.chapters.slice(0, idx)
+    .filter(c => c.content)
+    .map((c, k) => `Cap ${k + 1}: ${c.content.slice(0, 140)}`)
+    .join('\n');
+
+  const chapterPrompt = buildChapterPrompt({
+    productName:      product.name,
+    ebookTitle:       e.title,
+    chapterNum:       idx + 1,
+    totalChapters,
+    chapterTitle:     chapter.title,
+    chapterTitlesAll: chapterTitles,
+    angle:            e.angle_data,
+    previousSummary,
+  });
+
+  let newText;
+  try {
+    newText = await generateText({
+      modelId:     e.text_model_id,
+      apiKey:      textKey,
+      system:      SYS_CHAPTER,
+      user:        chapterPrompt,
+      maxTokens:   2500,
+      temperature: 0.85,  // un poco más alto que el inicial para que dé variación real
+    });
+    newText = String(newText || '').trim();
+  } catch (err) {
+    return res.status(502).json({ error: `Error al regenerar texto: ${err.message}` });
+  }
+
+  let newImgFile = null;
+  try {
+    const imgPrompt = buildImagePrompt({ chapterTitle: chapter.title, chapterExcerpt: newText, productCategory });
+    const imgBuf = await generateImage({ engine: imgDef.engine, prompt: imgPrompt, apiKey: imgKey, aspect: '4:3', modelId: imgDef.model });
+    newImgFile = `ch${idx + 1}_${e.id}_${Date.now()}_${crypto.randomBytes(3).toString('hex')}.png`;
+    fs.writeFileSync(path.join(EBOOK_IMG_DIR, newImgFile), imgBuf);
+  } catch (err) {
+    console.warn(`[ebooks] regenerate image failed: ${err.message}`);
+  }
+
+  // Persistir el nuevo capítulo y limpiar el pdf_path (queda desactualizado)
+  const updatedChapters = e.chapters.map((c, i) => i === idx ? { ...c, content: newText, image_path: newImgFile } : c);
+  const old = e.pdf_path;
+  product_ebooks.updateById(e.id, { chapters: updatedChapters, pdf_path: null });
+  if (old) { try { fs.unlinkSync(path.join(EBOOK_PDF_DIR, old)); } catch (_) {} }
+
+  const updated = product_ebooks.one({ id: e.id });
+  const chap = updated.chapters[idx];
+  res.json({
+    chapter: {
+      ...chap,
+      image_url: chap.image_path ? `/ebook-images/${chap.image_path}` : null,
+    },
+    pdf_invalidated: true,
+  });
+});
+
 // POST /api/ebooks/:id/resume → reanuda un ebook fallido/incompleto
 router.post('/:id/resume', async (req, res) => {
   const e = product_ebooks.one({ id: Number(req.params.id), user_id: req.user.id });
