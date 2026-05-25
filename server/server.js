@@ -51,40 +51,22 @@ app.use(express.static(path.join(__dirname, '..'), {
   index: false,
 }));
 
-// Serve generated ad images
-const ADS_DIR = path.join(__dirname, 'ads');
-if (!fs.existsSync(ADS_DIR)) fs.mkdirSync(ADS_DIR, { recursive: true });
-app.use('/ads', express.static(ADS_DIR));
+// Uploaded/generated media dirs. Routes write here via path.join(__dirname, '..', '<dir>'),
+// so we serve from the same location. On Railway, mount a persistent volume at /app/server
+// (or wherever this server lives) so these subdirectories survive redeploys.
+function mediaDir(name) {
+  const dir = path.join(__dirname, name);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
 
-// Serve generated landing page images (mirror of ads, used by /api/landings)
-const LANDINGS_DIR = path.join(__dirname, 'landings');
-if (!fs.existsSync(LANDINGS_DIR)) fs.mkdirSync(LANDINGS_DIR, { recursive: true });
-app.use('/landings', express.static(LANDINGS_DIR));
-
-// Serve generated mockup images
-const MOCKUPS_DIR = path.join(__dirname, 'mockups');
-if (!fs.existsSync(MOCKUPS_DIR)) fs.mkdirSync(MOCKUPS_DIR, { recursive: true });
-app.use('/mockups', express.static(MOCKUPS_DIR));
-
-// Serve generated logo images
-const LOGOS_DIR = path.join(__dirname, 'logos');
-if (!fs.existsSync(LOGOS_DIR)) fs.mkdirSync(LOGOS_DIR, { recursive: true });
-app.use('/logos', express.static(LOGOS_DIR));
-
-// Serve standalone text-to-image outputs
-const T2I_DIR = path.join(__dirname, 'text-to-image');
-if (!fs.existsSync(T2I_DIR)) fs.mkdirSync(T2I_DIR, { recursive: true });
-app.use('/text-to-image', express.static(T2I_DIR));
-
-// Serve admin-uploaded ad template images
-const TEMPLATES_DIR = path.join(__dirname, 'ad-templates');
-if (!fs.existsSync(TEMPLATES_DIR)) fs.mkdirSync(TEMPLATES_DIR, { recursive: true });
-app.use('/ad-templates', express.static(TEMPLATES_DIR));
-
-// Serve scraped Meta Ads media (downloaded from CDN to break expiring URLs)
-const META_ADS_DIR = path.join(__dirname, 'meta-ads');
-if (!fs.existsSync(META_ADS_DIR)) fs.mkdirSync(META_ADS_DIR, { recursive: true });
-app.use('/meta-ads', express.static(META_ADS_DIR));
+app.use('/ads',           express.static(mediaDir('ads')));
+app.use('/landings',      express.static(mediaDir('landings')));
+app.use('/mockups',       express.static(mediaDir('mockups')));
+app.use('/logos',         express.static(mediaDir('logos')));
+app.use('/text-to-image', express.static(mediaDir('text-to-image')));
+app.use('/ad-templates',  express.static(mediaDir('ad-templates')));
+app.use('/meta-ads',      express.static(mediaDir('meta-ads')));
 
 // ── Routes ───────────────────────────────────────────────────────
 app.use('/api/auth',  require('./routes/auth'));
