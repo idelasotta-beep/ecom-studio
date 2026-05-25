@@ -13,4 +13,4 @@
 PUPPETEER_SKIP_DOWNLOAD = "true"
 
 [phases.setup]
-nixPkgs = ['nodejs_20', 'chromium', 'fontconfig', 'freetype']
+nixPkgs = ['nodejs_22', 'chromium', 'fontconfig', 'freetype']
