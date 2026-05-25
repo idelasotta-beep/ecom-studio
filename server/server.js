@@ -102,13 +102,13 @@ app.get('*', (req, res) => {
 
 // ── Start ────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-const server = app.listen(PORT, () => {
+// Bind explícito a 0.0.0.0 — Railway/Render/Docker requieren que el server
+// escuche en todas las interfaces, no solo localhost, para que el proxy externo
+// pueda llegar al container.
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n⚡ Ecom Studio IA Server`);
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  console.log(`🌐 http://localhost:${PORT}`);
-  console.log(`📝 Register: http://localhost:${PORT}/register.html`);
-  console.log(`🔐 Login:    http://localhost:${PORT}/login.html`);
-  console.log(`⚙️  Admin:    http://localhost:${PORT}/admin.html`);
+  console.log(`🌐 Listening on 0.0.0.0:${PORT}`);
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 });
 server.setTimeout(600000); // 10 minutes — AI generation can take several minutes
