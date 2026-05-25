@@ -9717,20 +9717,63 @@ async function ebLoadSavedList() {
   const list = document.getElementById('eb-saved-list');
   if (!data || !data.ebooks || data.ebooks.length === 0) { sec.style.display = 'none'; return; }
   sec.style.display = '';
-  list.innerHTML = data.ebooks.map(e => `
+  list.innerHTML = data.ebooks.map(e => {
+    const statusBadge = e.status === 'ready' ? '✅ listo'
+                      : e.status === 'failed' ? '❌ falló'
+                      : '⏳ generando';
+    const errorRow = e.status === 'failed' && e.error
+      ? `<div class="eb-saved-meta" style="color:#f87171;margin-top:4px">${esc(e.error.slice(0, 120))}</div>`
+      : '';
+    return `
     <div class="eb-saved-item">
       ${e.cover_image_url ? `<img src="${e.cover_image_url}" class="eb-saved-thumb">` : '<div class="eb-saved-thumb"></div>'}
       <div class="eb-saved-info">
         <div class="eb-saved-title">${esc(e.title)}</div>
         <div class="eb-saved-sub">${esc(e.subtitle || '')}</div>
-        <div class="eb-saved-meta">${e.pages_target} págs · ${e.status === 'ready' ? '✅' : e.status === 'failed' ? '❌ falló' : '⏳ generando'} · ${fmtDate(e.created_at)}</div>
+        <div class="eb-saved-meta">${e.pages_target} págs · ${statusBadge} · ${fmtDate(e.created_at)}</div>
+        ${errorRow}
       </div>
       <div class="eb-saved-actions">
+        ${e.status === 'generating' ? `<button class="eb-mini-btn" onclick="ebOpenProgress(${e.id})">Ver progreso</button>` : ''}
+        ${e.can_resume ? `<button class="eb-mini-btn eb-mini-btn-primary" onclick="ebResume(${e.id})">Reanudar</button>` : ''}
         ${e.pdf_url ? `<a href="${e.pdf_url}" target="_blank" class="eb-mini-btn eb-mini-btn-primary">PDF</a>` : ''}
         <button class="eb-mini-btn eb-mini-btn-danger" onclick="ebDelete(${e.id})">✕</button>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
+}
+
+async function ebResume(ebookId) {
+  const r = await apiFetch('/ebooks/' + ebookId + '/resume', { method: 'POST' });
+  if (!r || r.error) { showToast(r && r.error || 'No se pudo reanudar'); return; }
+  // Pre-cargar título/subtítulo desde el listado para el step 3
+  const list = document.getElementById('eb-saved-list');
+  const item = list && list.querySelector(`[onclick="ebResume(${ebookId})"]`)?.closest('.eb-saved-item');
+  const titleEl = item && item.querySelector('.eb-saved-title');
+  const subEl   = item && item.querySelector('.eb-saved-sub');
+  document.getElementById('eb-ebook-title').textContent = titleEl ? titleEl.textContent : 'Reanudando ebook…';
+  document.getElementById('eb-ebook-sub').textContent   = subEl ? subEl.textContent : '';
+  document.getElementById('eb-preview-area').innerHTML  = '';
+  document.getElementById('eb-actions-area').style.display = 'none';
+  document.getElementById('eb-progress-fill').style.width  = '0%';
+  document.getElementById('eb-progress-label').textContent = '0%';
+  document.getElementById('eb-progress-msg').textContent   = 'Reanudando…';
+  ebState.ebookId = ebookId;
+  ebGoToStep(3);
+  ebStartPolling();
+  showToast('Reanudando ebook…');
+}
+
+async function ebOpenProgress(ebookId) {
+  // Si un ebook está generando, abre la vista de progreso y conecta el polling
+  const data = await apiFetch('/ebooks/' + ebookId);
+  if (!data || !data.ebook) return;
+  document.getElementById('eb-ebook-title').textContent = data.ebook.title;
+  document.getElementById('eb-ebook-sub').textContent   = data.ebook.subtitle || '';
+  document.getElementById('eb-actions-area').style.display = 'none';
+  ebState.ebookId = ebookId;
+  ebGoToStep(3);
+  ebStartPolling();
 }
 
 async function ebDelete(ebookId) {

@@ -465,9 +465,13 @@ const product_ebooks = {
       angle_ref:             data.angle_ref || null,
       angle_content:         data.angle_content || null,
       pages_target:          data.pages_target || 20,
-      text_model:            data.text_model || null,
+      text_model:            data.text_model || null,        // human label e.g. "Claude Sonnet 4.6"
       text_provider:         data.text_provider || null,
-      image_model:           data.image_model || null,
+      image_model:           data.image_model || null,       // human label e.g. "Nano Banana 2"
+      text_model_id:         data.text_model_id || null,     // raw id needed to re-call the API on resume
+      image_model_id:        data.image_model_id || null,
+      angle_data:            data.angle_data || null,        // snapshot of the parsed angle (problem/avatar/solution) for resume
+      idea_data:             data.idea_data || null,         // snapshot of the chosen idea (chapter_titles) for resume
       chapters:              Array.isArray(data.chapters) ? data.chapters : [],
       cover_image_path:      data.cover_image_path || null,
       back_cover_image_path: data.back_cover_image_path || null,

@@ -409,21 +409,25 @@ router.post('/products/:pid/generate', async (req, res) => {
   const totalChapters = chaptersFromPages(pages);
   const chapterTitles = Array.isArray(idea.chapter_titles) ? idea.chapter_titles.slice(0, totalChapters) : [];
 
-  // Create draft row
+  // Create draft row — guardamos también ids y snapshots porque resume los necesita
   const draft = product_ebooks.insert({
-    user_id:       req.user.id,
-    product_id:    p.id,
-    status:        'generating',
-    title:         idea.title || `Ebook de ${p.name}`,
-    subtitle:      idea.subtitle || '',
-    angle_ref:     angle.title,
-    angle_content: `## ÁNGULO ${angle.num}: ${angle.title}`,
-    pages_target:  Number(pages),
-    text_model:    textDef.label,
-    text_provider: textDef.provider,
-    image_model:   imgDef.label,
-    chapters:      chapterTitles.map((t, i) => ({ id: i + 1, num: i + 1, title: t, content: '', image_path: null })),
-    progress:      { step: 'starting', current: 0, total: totalChapters + 2, message: 'Preparando…' },
+    user_id:        req.user.id,
+    product_id:     p.id,
+    status:         'generating',
+    title:          idea.title || `Ebook de ${p.name}`,
+    subtitle:       idea.subtitle || '',
+    angle_ref:      angle.title,
+    angle_content:  `## ÁNGULO ${angle.num}: ${angle.title}`,
+    pages_target:   Number(pages),
+    text_model:     textDef.label,
+    text_provider:  textDef.provider,
+    image_model:    imgDef.label,
+    text_model_id,
+    image_model_id,
+    angle_data:     angle,
+    idea_data:      idea,
+    chapters:       chapterTitles.map((t, i) => ({ id: i + 1, num: i + 1, title: t, content: '', image_path: null })),
+    progress:       { step: 'starting', current: 0, total: totalChapters + 2, message: 'Preparando…' },
   });
 
   // Fire and forget — the heavy work runs in the background
@@ -456,11 +460,14 @@ router.get('/by-product/:pid', (req, res) => {
     title:        e.title,
     subtitle:     e.subtitle,
     status:       e.status,
+    error:        e.error || null,
     pages_target: e.pages_target,
     progress:     e.progress,
     pdf_url:      e.pdf_path ? `/ebooks/${e.pdf_path}` : null,
     cover_image_url: e.cover_image_path ? `/ebook-images/${e.cover_image_path}` : null,
     created_at:   e.created_at,
+    // can_resume: solo si está fallido y tiene los snapshots que el orquestador necesita
+    can_resume:   e.status === 'failed' && !!e.text_model_id && !!e.image_model_id && !!e.angle_data && !!e.idea_data,
   }));
   res.json({ ebooks: list });
 });
@@ -478,6 +485,59 @@ router.get('/:id', (req, res) => {
     image_url: c.image_path ? `/ebook-images/${c.image_path}` : null,
   }));
   res.json({ ebook: safe });
+});
+
+// POST /api/ebooks/:id/resume → reanuda un ebook fallido/incompleto
+router.post('/:id/resume', async (req, res) => {
+  const e = product_ebooks.one({ id: Number(req.params.id), user_id: req.user.id });
+  if (!e) return res.status(404).json({ error: 'Ebook no encontrado' });
+  if (e.status === 'generating') return res.status(409).json({ error: 'El ebook ya está generándose' });
+
+  // Necesitamos los snapshots que el generate guardó. Si vienen de un ebook
+  // viejo (anterior a la fase 2) sin estos campos, no podemos reanudar.
+  if (!e.text_model_id || !e.image_model_id || !e.angle_data || !e.idea_data) {
+    return res.status(409).json({
+      error: 'Este ebook no se puede reanudar (fue creado antes de la función reanudar). Genera uno nuevo.',
+    });
+  }
+
+  const textDef = TEXT_MODELS[e.text_model_id];
+  const imgDef  = IMAGE_MODELS[e.image_model_id];
+  if (!textDef || !imgDef) return res.status(400).json({ error: 'Los modelos usados ya no están disponibles' });
+
+  const textKey = keyFor(req.user.id, e.text_model_id);
+  const imgKey  = keyFor(req.user.id, e.image_model_id, true);
+  if (!textKey) return res.status(402).json({ error: `Configura tu API key de ${textDef.provider} en Ajustes → APIs` });
+  if (!imgKey)  return res.status(402).json({ error: `Configura tu API key de ${imgDef.engine === 'openai' ? 'OpenAI' : 'Google'} en Ajustes → APIs` });
+
+  const product = products.one({ id: e.product_id, user_id: req.user.id });
+  if (!product) return res.status(404).json({ error: 'El producto del ebook ya no existe' });
+
+  const totalChapters = (e.chapters || []).length || chaptersFromPages(e.pages_target);
+
+  // Marcar generating + limpiar error previo y disparar el orquestador
+  product_ebooks.updateById(e.id, {
+    status:   'generating',
+    error:    null,
+    progress: { step: 'resuming', current: 0, total: totalChapters + 2, message: 'Reanudando…' },
+  });
+
+  generateEbookAsync(e.id, {
+    product,
+    angle:          e.angle_data,
+    idea:           e.idea_data,
+    totalChapters,
+    text_model_id:  e.text_model_id,
+    image_model_id: e.image_model_id,
+    textKey,
+    imgKey,
+    imgDef,
+  }).catch(err => {
+    console.error(`[ebooks] resume ${e.id} failed:`, err);
+    product_ebooks.updateById(e.id, { status: 'failed', error: err.message });
+  });
+
+  res.status(202).json({ id: e.id, status: 'generating', total_steps: totalChapters + 2 });
 });
 
 // POST /api/ebooks/:id/export-pdf → render PDF on demand
@@ -514,17 +574,22 @@ router.delete('/:id', (req, res) => {
 
 // ─────────────────────────────────────────────────────────────────
 // Async generation orchestrator
+//
+// Idempotente: skipea cualquier paso cuya salida ya esté guardada en la DB
+// (portada, contraportada, texto del capítulo, imagen del capítulo, intro,
+// conclusión). Esto permite reanudar un ebook fallido sin regenerar lo que
+// ya costó tokens.
 // ─────────────────────────────────────────────────────────────────
 async function generateEbookAsync(ebookId, ctx) {
-  const { product, angle, idea, totalChapters, text_model_id, image_model_id, textKey, imgKey, imgDef } = ctx;
+  const { product, angle, idea, totalChapters, text_model_id, textKey, imgKey, imgDef } = ctx;
   const chapterTitles = (idea.chapter_titles || []).slice(0, totalChapters);
 
   const updateProgress = (step, current, total, message) => {
     product_ebooks.updateById(ebookId, { progress: { step, current, total, message } });
   };
 
-  // ─── Step 1: cover image + back cover image (parallel) ───
-  updateProgress('cover', 0, totalChapters + 2, 'Generando portada…');
+  // Foto del estado actual: qué hay que generar y qué se puede saltar.
+  const initial = product_ebooks.one({ id: ebookId }) || {};
   const productCategory = product.description ? product.description.slice(0, 120) : product.name;
   const coverPrompt = buildCoverImagePrompt({ ebookTitle: idea.title, productCategory });
 
@@ -534,82 +599,97 @@ async function generateEbookAsync(ebookId, ctx) {
     return filename;
   };
 
-  let coverFile, backFile;
-  try {
-    const [coverBuf, backBuf] = await Promise.all([
-      generateImage({ engine: imgDef.engine, prompt: coverPrompt, apiKey: imgKey, aspect: '4:3', modelId: imgDef.model }),
-      generateImage({ engine: imgDef.engine, prompt: coverPrompt + ' Alternative composition, equally clean.', apiKey: imgKey, aspect: '4:3', modelId: imgDef.model }),
-    ]);
-    coverFile = saveImg(coverBuf, 'cover');
-    backFile  = saveImg(backBuf,  'back');
-    product_ebooks.updateById(ebookId, { cover_image_path: coverFile, back_cover_image_path: backFile });
-  } catch (err) {
-    throw new Error(`Falló la generación de portada: ${err.message}`);
+  // ─── Step 1: cover + back cover (genera solo las que falten) ───
+  updateProgress('cover', 0, totalChapters + 2, 'Generando portada…');
+  const needCover = !initial.cover_image_path || !fs.existsSync(path.join(EBOOK_IMG_DIR, initial.cover_image_path));
+  const needBack  = !initial.back_cover_image_path || !fs.existsSync(path.join(EBOOK_IMG_DIR, initial.back_cover_image_path));
+  if (needCover || needBack) {
+    try {
+      const jobs = [];
+      if (needCover) jobs.push(generateImage({ engine: imgDef.engine, prompt: coverPrompt, apiKey: imgKey, aspect: '4:3', modelId: imgDef.model }));
+      if (needBack)  jobs.push(generateImage({ engine: imgDef.engine, prompt: coverPrompt + ' Alternative composition, equally clean.', apiKey: imgKey, aspect: '4:3', modelId: imgDef.model }));
+      const results = await Promise.all(jobs);
+      const patch = {};
+      let idx = 0;
+      if (needCover) { patch.cover_image_path      = saveImg(results[idx++], 'cover'); }
+      if (needBack)  { patch.back_cover_image_path = saveImg(results[idx++], 'back'); }
+      product_ebooks.updateById(ebookId, patch);
+    } catch (err) {
+      throw new Error(`Falló la generación de portada: ${err.message}`);
+    }
   }
 
-  // ─── Step 2: each chapter (text → image), sequential to keep context coherent ───
+  // ─── Step 2: cada capítulo (texto → imagen) — skip lo que ya está hecho ───
   const previousSummaries = [];
   for (let i = 0; i < chapterTitles.length; i++) {
-    const chapterNum = i + 1;
+    const chapterNum   = i + 1;
     const chapterTitle = chapterTitles[i];
+    const currentState = product_ebooks.one({ id: ebookId });
+    const existing     = currentState?.chapters?.[i] || {};
 
-    updateProgress('chapter_text', chapterNum, totalChapters + 2, `Escribiendo capítulo ${chapterNum}/${totalChapters}…`);
-
-    const previousSummary = previousSummaries.length
-      ? previousSummaries.map((s, k) => `Cap ${k + 1}: ${s.slice(0, 140)}`).join('\n')
-      : '';
-
-    const chapterPrompt = buildChapterPrompt({
-      productName:       product.name,
-      ebookTitle:        idea.title,
-      chapterNum,
-      totalChapters,
-      chapterTitle,
-      chapterTitlesAll:  chapterTitles,
-      angle,
-      previousSummary,
-    });
-
-    let chapterText;
-    try {
-      chapterText = await generateText({
-        modelId:     text_model_id,
-        apiKey:      textKey,
-        system:      SYS_CHAPTER,
-        user:        chapterPrompt,
-        maxTokens:   2500,
-        temperature: 0.78,
-      });
-    } catch (err) {
-      throw new Error(`Capítulo ${chapterNum}: ${err.message}`);
-    }
-    chapterText = String(chapterText || '').trim();
-    previousSummaries.push(chapterText.slice(0, 200));
-
-    // Save text immediately so polling shows progress
-    const ebook = product_ebooks.one({ id: ebookId });
-    const newChapters = ebook.chapters.map((c, idx) => idx === i ? { ...c, content: chapterText } : c);
-    product_ebooks.updateById(ebookId, { chapters: newChapters });
-
-    updateProgress('chapter_image', chapterNum, totalChapters + 2, `Generando imagen capítulo ${chapterNum}/${totalChapters}…`);
-    try {
-      const imgPrompt = buildImagePrompt({
+    // ── Texto del capítulo ──
+    let chapterText = existing.content || '';
+    if (chapterText) {
+      previousSummaries.push(chapterText.slice(0, 200));
+      updateProgress('chapter_text', chapterNum, totalChapters + 2, `Cap ${chapterNum}/${totalChapters} ya escrito — saltando`);
+    } else {
+      updateProgress('chapter_text', chapterNum, totalChapters + 2, `Escribiendo capítulo ${chapterNum}/${totalChapters}…`);
+      const previousSummary = previousSummaries.length
+        ? previousSummaries.map((s, k) => `Cap ${k + 1}: ${s.slice(0, 140)}`).join('\n')
+        : '';
+      const chapterPrompt = buildChapterPrompt({
+        productName:      product.name,
+        ebookTitle:       idea.title,
+        chapterNum,
+        totalChapters,
         chapterTitle,
-        chapterExcerpt: chapterText,
-        productCategory,
+        chapterTitlesAll: chapterTitles,
+        angle,
+        previousSummary,
       });
-      const imgBuf = await generateImage({ engine: imgDef.engine, prompt: imgPrompt, apiKey: imgKey, aspect: '4:3', modelId: imgDef.model });
-      const imgFile = saveImg(imgBuf, `ch${chapterNum}`);
-      const eb2 = product_ebooks.one({ id: ebookId });
-      const withImg = eb2.chapters.map((c, idx) => idx === i ? { ...c, image_path: imgFile } : c);
-      product_ebooks.updateById(ebookId, { chapters: withImg });
-    } catch (err) {
-      // Non-fatal: log but continue. The PDF will simply skip this chapter's image.
-      console.warn(`[ebooks] image for chapter ${chapterNum} failed: ${err.message}`);
+      try {
+        chapterText = await generateText({
+          modelId:     text_model_id,
+          apiKey:      textKey,
+          system:      SYS_CHAPTER,
+          user:        chapterPrompt,
+          maxTokens:   2500,
+          temperature: 0.78,
+        });
+      } catch (err) {
+        throw new Error(`Capítulo ${chapterNum}: ${err.message}`);
+      }
+      chapterText = String(chapterText || '').trim();
+      previousSummaries.push(chapterText.slice(0, 200));
+      // Persistir el texto inmediatamente para que el polling lo vea
+      const eb = product_ebooks.one({ id: ebookId });
+      const next = eb.chapters.map((c, idx) => idx === i ? { ...c, content: chapterText } : c);
+      product_ebooks.updateById(ebookId, { chapters: next });
+    }
+
+    // ── Imagen del capítulo ──
+    const hasImg = existing.image_path && fs.existsSync(path.join(EBOOK_IMG_DIR, existing.image_path));
+    if (!hasImg) {
+      updateProgress('chapter_image', chapterNum, totalChapters + 2, `Generando imagen capítulo ${chapterNum}/${totalChapters}…`);
+      try {
+        const imgPrompt = buildImagePrompt({
+          chapterTitle,
+          chapterExcerpt: chapterText,
+          productCategory,
+        });
+        const imgBuf = await generateImage({ engine: imgDef.engine, prompt: imgPrompt, apiKey: imgKey, aspect: '4:3', modelId: imgDef.model });
+        const imgFile = saveImg(imgBuf, `ch${chapterNum}`);
+        const eb2 = product_ebooks.one({ id: ebookId });
+        const withImg = eb2.chapters.map((c, idx) => idx === i ? { ...c, image_path: imgFile } : c);
+        product_ebooks.updateById(ebookId, { chapters: withImg });
+      } catch (err) {
+        // No fatal: si la imagen falla, el PDF se renderiza sin ella.
+        console.warn(`[ebooks] image for chapter ${chapterNum} failed: ${err.message}`);
+      }
     }
   }
 
-  // ─── Step 3: intro & conclusion (parallel) ───
+  // ─── Step 3: intro & conclusion (skip si ya existen) ───
   updateProgress('intro_conclusion', totalChapters + 1, totalChapters + 2, 'Escribiendo introducción y conclusión…');
 
   const introPrompt = `Escribe la INTRODUCCIÓN de un ebook tipo lead magnet titulado "${idea.title}", subtítulo "${idea.subtitle}".
@@ -631,20 +711,24 @@ Refuerza la idea de que la consistencia es lo importante.
 Anima al lector a poner en práctica lo aprendido y menciona el producto UNA vez como "herramienta de apoyo".
 IDIOMA: español neutro estándar (tú/tu). PROHIBIDO el voseo argentino.`;
 
-  let introText = '', conclusionText = '';
-  try {
-    [introText, conclusionText] = await Promise.all([
-      generateText({ modelId: text_model_id, apiKey: textKey, system: SYS_CHAPTER, user: introPrompt, maxTokens: 800, temperature: 0.75 }),
-      generateText({ modelId: text_model_id, apiKey: textKey, system: SYS_CHAPTER, user: conclusionPrompt, maxTokens: 800, temperature: 0.75 }),
-    ]);
-  } catch (err) {
-    console.warn('[ebooks] intro/conclusion failed:', err.message);
+  const ebState = product_ebooks.one({ id: ebookId }) || {};
+  const introPatch = {};
+  const introNeed      = !ebState.intro_content;
+  const conclusionNeed = !ebState.conclusion_content;
+  if (introNeed || conclusionNeed) {
+    try {
+      const jobs = [];
+      if (introNeed)      jobs.push(generateText({ modelId: text_model_id, apiKey: textKey, system: SYS_CHAPTER, user: introPrompt,      maxTokens: 800, temperature: 0.75 }));
+      if (conclusionNeed) jobs.push(generateText({ modelId: text_model_id, apiKey: textKey, system: SYS_CHAPTER, user: conclusionPrompt, maxTokens: 800, temperature: 0.75 }));
+      const results = await Promise.all(jobs);
+      let idx = 0;
+      if (introNeed)      introPatch.intro_content      = String(results[idx++] || '').trim();
+      if (conclusionNeed) introPatch.conclusion_content = String(results[idx++] || '').trim();
+      if (Object.keys(introPatch).length > 0) product_ebooks.updateById(ebookId, introPatch);
+    } catch (err) {
+      console.warn('[ebooks] intro/conclusion failed:', err.message);
+    }
   }
-
-  product_ebooks.updateById(ebookId, {
-    intro_content:      String(introText || '').trim(),
-    conclusion_content: String(conclusionText || '').trim(),
-  });
 
   // ─── Step 4: render PDF ───
   updateProgress('pdf', totalChapters + 2, totalChapters + 2, 'Renderizando PDF…');
@@ -654,14 +738,15 @@ IDIOMA: español neutro estándar (tú/tu). PROHIBIDO el voseo argentino.`;
     product_ebooks.updateById(ebookId, {
       pdf_path: pdfFilename,
       status:   'ready',
+      error:    null,
       progress: { step: 'done', current: totalChapters + 2, total: totalChapters + 2, message: 'Listo' },
     });
   } catch (err) {
     // Mark as ready-without-pdf so the user can still preview chapters
     product_ebooks.updateById(ebookId, {
       status:   'ready',
-      error:    `PDF falló: ${err.message}. Los capítulos están listos — podés re-exportar.`,
-      progress: { step: 'pdf_failed', current: totalChapters + 1, total: totalChapters + 2, message: 'Capítulos listos. PDF falló — intentá re-exportar.' },
+      error:    `PDF falló: ${err.message}. Los capítulos están listos — puedes re-exportar.`,
+      progress: { step: 'pdf_failed', current: totalChapters + 1, total: totalChapters + 2, message: 'Capítulos listos. PDF falló — intenta re-exportar.' },
     });
   }
 }
