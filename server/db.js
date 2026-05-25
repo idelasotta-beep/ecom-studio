@@ -10,13 +10,13 @@ const DB_FILE = dbFile();
 
 const DEFAULTS = {
   users: [], user_settings: [],
-  products: [], product_research: [], product_angles: [], product_ads: [], product_landings: [], product_assembled_landings: [], product_descriptions: [], product_audios: [], product_pricings: [], product_copys: [], product_testimonials: [], product_mockups: [], product_logos: [], product_ebooks: [],
+  products: [], product_research: [], product_angles: [], product_ads: [], product_landings: [], product_assembled_landings: [], product_descriptions: [], product_audios: [], product_voiceovers: [], product_pricings: [], product_copys: [], product_testimonials: [], product_mockups: [], product_logos: [], product_ebooks: [],
   text_to_image_outputs: [],
   shopify_connections: [],
   ad_templates: [],
   meta_spy_searches: [], meta_spy_ads: [], meta_spy_folders: [], meta_spy_saved: [], meta_spy_competitors: [],
   tiktok_spy_searches: [], tiktok_spy_products: [], tiktok_spy_folders: [], tiktok_spy_saved: [],
-  _seq: { users: 0, products: 0, product_research: 0, product_angles: 0, product_ads: 0, product_landings: 0, product_assembled_landings: 0, product_descriptions: 0, product_audios: 0, product_pricings: 0, product_copys: 0, product_testimonials: 0, product_mockups: 0, product_logos: 0, product_ebooks: 0, text_to_image_outputs: 0, shopify_connections: 0, ad_templates: 0, meta_spy_searches: 0, meta_spy_ads: 0, meta_spy_folders: 0, meta_spy_saved: 0, meta_spy_competitors: 0, tiktok_spy_searches: 0, tiktok_spy_products: 0, tiktok_spy_folders: 0, tiktok_spy_saved: 0 },
+  _seq: { users: 0, products: 0, product_research: 0, product_angles: 0, product_ads: 0, product_landings: 0, product_assembled_landings: 0, product_descriptions: 0, product_audios: 0, product_voiceovers: 0, product_pricings: 0, product_copys: 0, product_testimonials: 0, product_mockups: 0, product_logos: 0, product_ebooks: 0, text_to_image_outputs: 0, shopify_connections: 0, ad_templates: 0, meta_spy_searches: 0, meta_spy_ads: 0, meta_spy_folders: 0, meta_spy_saved: 0, meta_spy_competitors: 0, tiktok_spy_searches: 0, tiktok_spy_products: 0, tiktok_spy_folders: 0, tiktok_spy_saved: 0 },
 };
 
 function load() {
@@ -188,6 +188,7 @@ const products = {
     db.product_mockups      = (db.product_mockups      || []).filter(r => r.product_id != id);
     db.product_logos        = (db.product_logos        || []).filter(r => r.product_id != id);
     db.product_ebooks       = (db.product_ebooks       || []).filter(r => r.product_id != id);
+    db.product_voiceovers   = (db.product_voiceovers   || []).filter(r => r.product_id != id);
     save(db);
     return db.products.length < before;
   },
@@ -528,6 +529,48 @@ const product_ebooks = {
     });
     if (count > 0) save(db);
     return count;
+  },
+};
+
+// ── Product Voiceovers (audios reales generados con ElevenLabs) ──
+const product_voiceovers = {
+  forProduct(productId) {
+    return (load().product_voiceovers || [])
+      .filter(r => r.product_id == productId)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  },
+  one(filter) {
+    return (load().product_voiceovers || []).find(r => Object.entries(filter).every(([k, v]) => r[k] == v)) || null;
+  },
+  insert(data) {
+    const db = load();
+    if (!db.product_voiceovers) db.product_voiceovers = [];
+    const id = nextId(db, 'product_voiceovers');
+    db.product_voiceovers.push({
+      id,
+      user_id:          data.user_id,
+      product_id:       data.product_id,
+      source_script_id: data.source_script_id || null,
+      text:             data.text || '',
+      voice_type:       data.voice_type || null,
+      voice_id:         data.voice_id || null,
+      voice_name:       data.voice_name || null,
+      model_id:         data.model_id || null,
+      audio_path:       data.audio_path,
+      char_count:       data.char_count || 0,
+      file_size_bytes:  data.file_size_bytes || 0,
+      created_at:       now(),
+    });
+    save(db);
+    return { id };
+  },
+  delete(id, userId) {
+    const db = load();
+    if (!db.product_voiceovers) db.product_voiceovers = [];
+    const before = db.product_voiceovers.length;
+    db.product_voiceovers = db.product_voiceovers.filter(r => !(r.id == id && r.user_id == userId));
+    save(db);
+    return db.product_voiceovers.length < before;
   },
 };
 
@@ -1429,4 +1472,4 @@ const tiktok_spy_saved = {
   },
 };
 
-module.exports = { users, user_settings, products, product_research, product_angles, product_ads, product_landings, product_assembled_landings, product_descriptions, product_audios, product_pricings, product_copys, product_testimonials, product_mockups, product_logos, product_ebooks, text_to_image_outputs, shopify_connections, ad_templates, LANDING_CATEGORIES, meta_spy_searches, meta_spy_ads, meta_spy_folders, meta_spy_saved, meta_spy_competitors, tiktok_spy_searches, tiktok_spy_products, tiktok_spy_folders, tiktok_spy_saved };
+module.exports = { users, user_settings, products, product_research, product_angles, product_ads, product_landings, product_assembled_landings, product_descriptions, product_audios, product_voiceovers, product_pricings, product_copys, product_testimonials, product_mockups, product_logos, product_ebooks, text_to_image_outputs, shopify_connections, ad_templates, LANDING_CATEGORIES, meta_spy_searches, meta_spy_ads, meta_spy_folders, meta_spy_saved, meta_spy_competitors, tiktok_spy_searches, tiktok_spy_products, tiktok_spy_folders, tiktok_spy_saved };

@@ -3108,10 +3108,10 @@ html.light .api-input { background:#f8fafc; }
     <span class="s-icon">🎙️</span>
     <span class="s-label">Scripts de Audios</span>
   </button>
-  <button class="s-item" style="opacity:.6" onclick="showToast('Próximamente disponible')">
+  <button class="s-item" onclick="showSection('voiceovers',this)">
     <span class="s-icon">🎧</span>
     <span class="s-label">Audios</span>
-    <span class="s-right"><span class="badge-soon">Pronto</span></span>
+    <span class="s-right"><span class="badge-new">Nuevo</span></span>
   </button>
   <button class="s-item" onclick="showSection('ebooks',this)">
     <span class="s-icon">📚</span>
@@ -5301,6 +5301,132 @@ html.light .api-input { background:#f8fafc; }
   </div>
 
   <!-- ══════════════════════════════════════
+       AUDIOS — síntesis de voz con ElevenLabs
+  ═══════════════════════════════════════ -->
+  <style>
+    #section-voiceovers .vo-pill { display:inline-block; padding:3px 10px; background:rgba(139,92,246,.12); color:#a78bfa; font-size:10px; font-weight:600; border-radius:999px; text-transform:uppercase; letter-spacing:1.5px; }
+    #section-voiceovers .vo-source-tabs { display:flex; gap:8px; margin-bottom:14px; }
+    #section-voiceovers .vo-source-tab { padding:8px 14px; background:var(--card2); border:1px solid var(--border); border-radius:8px; color:var(--text2); font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; font-family:inherit; }
+    #section-voiceovers .vo-source-tab:hover { border-color:#8b5cf6; }
+    #section-voiceovers .vo-source-tab.active { background:rgba(139,92,246,.12); border-color:#8b5cf6; color:#a78bfa; }
+    #section-voiceovers .vo-textarea { width:100%; min-height:120px; padding:12px; background:var(--card2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:13px; line-height:1.5; outline:none; font-family:inherit; resize:vertical; }
+    #section-voiceovers .vo-textarea:focus { border-color:#8b5cf6; }
+    #section-voiceovers .vo-field { width:100%; padding:11px 14px; background:var(--card2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:13px; outline:none; font-family:inherit; }
+    #section-voiceovers .vo-field:focus { border-color:#8b5cf6; }
+    #section-voiceovers .vo-row2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    #section-voiceovers label.vo-label { display:block; font-size:12px; font-weight:600; color:var(--text2); margin-bottom:6px; }
+    #section-voiceovers .vo-form-block { margin-bottom:16px; }
+    #section-voiceovers .vo-char-count { font-size:11px; color:var(--muted); margin-top:6px; text-align:right; }
+    #section-voiceovers .vo-char-count.over { color:#f87171; font-weight:600; }
+    #section-voiceovers .vo-gen-btn { width:100%; padding:13px; background:linear-gradient(135deg,#8b5cf6,#3b82f6); color:white; border:none; border-radius:12px; font-size:14px; font-weight:600; cursor:pointer; }
+    #section-voiceovers .vo-gen-btn:hover { opacity:.88; }
+    #section-voiceovers .vo-gen-btn:disabled { opacity:.5; cursor:not-allowed; }
+    #section-voiceovers .vo-spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.3); border-top-color:white; border-radius:50%; animation:vo-spin .8s linear infinite; vertical-align:middle; }
+    @keyframes vo-spin { to { transform:rotate(360deg); } }
+    #section-voiceovers .vo-saved-item { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:10px; }
+    #section-voiceovers .vo-saved-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+    #section-voiceovers .vo-saved-meta { font-size:11px; color:var(--muted); }
+    #section-voiceovers .vo-saved-voice { font-size:12px; font-weight:600; color:var(--text); }
+    #section-voiceovers .vo-saved-text { font-size:12px; color:var(--text2); line-height:1.5; margin:8px 0; padding:8px 10px; background:var(--card2); border-radius:6px; max-height:80px; overflow-y:auto; }
+    #section-voiceovers audio { width:100%; margin-top:4px; }
+    #section-voiceovers .vo-script-card { background:var(--card2); border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:8px; cursor:pointer; transition:all .15s; }
+    #section-voiceovers .vo-script-card:hover { border-color:#8b5cf6; background:var(--card); }
+    #section-voiceovers .vo-script-card.selected { border-color:#8b5cf6; background:rgba(139,92,246,.08); }
+    #section-voiceovers .vo-script-title { font-size:12px; font-weight:600; color:var(--text); }
+    #section-voiceovers .vo-script-snippet { font-size:11px; color:var(--muted); line-height:1.4; margin-top:4px; max-height:40px; overflow:hidden; }
+    #section-voiceovers .vo-mini-btn { padding:6px 10px; font-size:11px; font-weight:600; border:1px solid var(--border); border-radius:7px; background:transparent; color:var(--text2); cursor:pointer; text-decoration:none; }
+    #section-voiceovers .vo-mini-btn:hover { border-color:#8b5cf6; }
+    #section-voiceovers .vo-mini-btn.vo-mini-btn-primary { background:linear-gradient(135deg,#8b5cf6,#3b82f6); color:white; border-color:transparent; }
+    #section-voiceovers .vo-mini-btn.vo-mini-btn-danger:hover { border-color:#ef4444; background:rgba(239,68,68,.08); }
+  </style>
+
+  <div class="content-section" id="section-voiceovers">
+
+    <!-- List view: grilla de productos -->
+    <div id="vo-list-view" style="height:100%;display:flex;flex-direction:column">
+      <div class="pr-header">
+        <div>
+          <div class="pr-title">Audios</div>
+          <div class="pr-subtitle">Convierte tus scripts en audios reales con ElevenLabs — voces hiperrealistas en español LATAM</div>
+        </div>
+      </div>
+      <div class="pr-grid" id="vo-prod-grid" style="padding:18px 24px 24px">
+        <div style="grid-column:1/-1;text-align:center;padding:48px 24px;color:var(--muted);font-size:13px">
+          Cargando productos...
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail view: wizard -->
+    <div id="vo-detail-view" style="display:none;flex-direction:column;height:100%;overflow:hidden">
+      <div id="vo-scroll" style="flex:1;overflow-y:auto;padding:24px">
+
+        <div class="ang-detail-header">
+          <button class="ang-back-btn" onclick="voShowList()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            Volver
+          </button>
+          <span class="ang-detail-prod" id="vo-detail-prod-name">Producto</span>
+        </div>
+
+        <span class="vo-pill">GENERADOR DE AUDIO</span>
+        <h2 style="font-size:20px;font-weight:700;margin:10px 0 4px">Genera tu audio</h2>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:18px">Elige el origen del texto (un script existente o uno libre), una voz y el modelo de ElevenLabs.</p>
+
+        <div class="ang-form-card">
+          <!-- Source tabs -->
+          <div class="vo-form-block">
+            <label class="vo-label">Origen del texto</label>
+            <div class="vo-source-tabs">
+              <button class="vo-source-tab active" data-source="script" onclick="voSelectSource('script')">📜 Desde script</button>
+              <button class="vo-source-tab" data-source="free" onclick="voSelectSource('free')">✍ Texto libre</button>
+            </div>
+          </div>
+
+          <!-- Source: script list -->
+          <div class="vo-form-block" id="vo-source-script">
+            <label class="vo-label">Selecciona un script generado</label>
+            <div id="vo-script-list">
+              <div style="font-size:12px;color:var(--muted)">Sin scripts. Genera uno en la sección <strong style="color:var(--text2)">Scripts de Audios</strong> o usa "Texto libre".</div>
+            </div>
+          </div>
+
+          <!-- Source: free text -->
+          <div class="vo-form-block" id="vo-source-free" style="display:none">
+            <label class="vo-label">Escribe el texto a sintetizar</label>
+            <textarea id="vo-text" class="vo-textarea" placeholder="Escribe acá el texto que quieres convertir a audio..." oninput="voUpdateCharCount()"></textarea>
+            <div class="vo-char-count" id="vo-char-count">0 / 5000 caracteres</div>
+          </div>
+
+          <!-- Voice + model -->
+          <div class="vo-form-block vo-row2">
+            <div>
+              <label class="vo-label">Tipo de voz</label>
+              <select id="vo-voice-select" class="vo-field"></select>
+              <div id="vo-voice-desc" class="vo-char-count" style="text-align:left;color:var(--muted);font-size:11px"></div>
+            </div>
+            <div>
+              <label class="vo-label">Modelo de ElevenLabs</label>
+              <select id="vo-model-select" class="vo-field"></select>
+            </div>
+          </div>
+
+          <button class="vo-gen-btn" id="vo-gen-btn" onclick="voGenerate()">
+            <span id="vo-gen-text">🎙️ Generar audio</span>
+          </button>
+        </div>
+
+        <!-- Listado de audios generados -->
+        <div id="vo-saved-section" style="display:none;margin-top:32px">
+          <h3 style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px">Audios de este producto</h3>
+          <div id="vo-saved-list"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
        PRECIOS — Calculadora de Rentabilidad
   ═══════════════════════════════════════ -->
   <div class="content-section" id="section-pricing">
@@ -7410,6 +7536,7 @@ function refreshCurrentSection() {
   if (_currentSection === 'text-to-image')    t2iLoad();
   if (_currentSection === 'copys')            cpyLoad();
   if (_currentSection === 'ebooks')           ebLoad();
+  if (_currentSection === 'voiceovers')       voLoad();
   if (_currentSection === 'testimonials')     wtsLoad();
   if (_currentSection === 'meta-spy')         msLoad();
   if (_currentSection === 'tiktok-spy')       ttsLoad();
@@ -10026,6 +10153,238 @@ async function ebDelete(ebookId) {
 
 // Hook up form listeners once (DOM is built at page load)
 document.addEventListener('DOMContentLoaded', ebInitFormHooks);
+
+/* ═══════════════════════════════════════════════════════════════
+   AUDIOS — síntesis de voz con ElevenLabs (sección Audios inline)
+═══════════════════════════════════════════════════════════════ */
+const voState = {
+  product:        null,
+  products:       [],
+  voices:         {},   // { male_young: {voice_id, name, description}, ... }
+  models:         {},
+  scripts:        [],
+  voiceovers:     [],
+  source:         'script',
+  selectedScript: null,
+};
+
+async function voLoad() {
+  const data = await apiFetch('/voiceovers');
+  if (!data) return;
+  voState.products = data.products || [];
+  voState.voices   = data.voices   || {};
+  voState.models   = data.models   || {};
+  voRenderGrid(voState.products);
+}
+
+function voRenderGrid(prods) {
+  const grid = document.getElementById('vo-prod-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  if (!prods.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px 24px;color:var(--muted);font-size:13px">No tienes productos. Crea uno en <strong style="color:var(--text2)">Investigación de Producto</strong>.</div>`;
+    return;
+  }
+  prods.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'pr-card';
+    div.onclick = () => voOpenDetail(p.id);
+    const count = p.voiceover_count || 0;
+    const label = count === 0 ? 'Sin audios' : `${count} audio${count === 1 ? '' : 's'}`;
+    const countBadge = count > 0
+      ? `<div class="pr-card-badge">${label}</div>`
+      : `<div class="pr-card-badge" style="background:rgba(139,92,246,.12);color:#a78bfa">${label}</div>`;
+    div.innerHTML = `
+      <div class="pr-card-icon">
+        ${p.image
+          ? `<img src="${p.image}" alt="">`
+          : `<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`}
+      </div>
+      <div class="pr-card-info">
+        <div class="pr-card-name">${esc(p.name)}</div>
+        ${countBadge}
+      </div>`;
+    grid.appendChild(div);
+  });
+}
+
+async function voOpenDetail(productId) {
+  document.getElementById('vo-list-view').style.display   = 'none';
+  document.getElementById('vo-detail-view').style.display = 'flex';
+
+  // Reset state
+  voState.product = null;
+  voState.scripts = [];
+  voState.voiceovers = [];
+  voState.source = 'script';
+  voState.selectedScript = null;
+  document.getElementById('vo-text').value = '';
+  voUpdateCharCount();
+
+  const data = await apiFetch('/voiceovers/' + productId);
+  if (!data) return;
+  voState.product    = data.product;
+  voState.scripts    = data.scripts    || [];
+  voState.voiceovers = data.voiceovers || [];
+  document.getElementById('vo-detail-prod-name').textContent = voState.product.name;
+
+  voPopulateVoiceSelect();
+  voPopulateModelSelect();
+  voRenderScripts();
+  voSelectSource(voState.scripts.length ? 'script' : 'free');
+  voRenderSaved();
+  document.getElementById('vo-scroll').scrollTop = 0;
+}
+
+function voShowList() {
+  document.getElementById('vo-list-view').style.display   = 'flex';
+  document.getElementById('vo-detail-view').style.display = 'none';
+  voState.product = null;
+  voLoad();
+}
+
+function voPopulateVoiceSelect() {
+  const sel = document.getElementById('vo-voice-select');
+  sel.innerHTML = Object.entries(voState.voices).map(([key, v]) =>
+    `<option value="${key}">${esc(v.name)} — ${esc(v.description)}</option>`
+  ).join('');
+  sel.onchange = voUpdateVoiceDesc;
+  voUpdateVoiceDesc();
+}
+
+function voUpdateVoiceDesc() {
+  const sel = document.getElementById('vo-voice-select');
+  const v = voState.voices[sel.value];
+  document.getElementById('vo-voice-desc').textContent = v ? v.description : '';
+}
+
+function voPopulateModelSelect() {
+  const sel = document.getElementById('vo-model-select');
+  sel.innerHTML = Object.entries(voState.models).map(([key, m]) =>
+    `<option value="${key}">${esc(m.label)}</option>`
+  ).join('');
+}
+
+function voSelectSource(source) {
+  voState.source = source;
+  document.querySelectorAll('#section-voiceovers .vo-source-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.source === source);
+  });
+  document.getElementById('vo-source-script').style.display = (source === 'script') ? '' : 'none';
+  document.getElementById('vo-source-free').style.display   = (source === 'free')   ? '' : 'none';
+}
+
+function voRenderScripts() {
+  const wrap = document.getElementById('vo-script-list');
+  if (voState.scripts.length === 0) {
+    wrap.innerHTML = `<div style="font-size:12px;color:var(--muted)">Sin scripts. Genera uno en la sección <strong style="color:var(--text2)">Scripts de Audios</strong> o usa "Texto libre".</div>`;
+    return;
+  }
+  wrap.innerHTML = voState.scripts.map(s => {
+    const snippet = (s.script || '').slice(0, 140);
+    const dateStr = fmtDate(s.created_at);
+    return `
+      <div class="vo-script-card" data-script-id="${s.id}" onclick="voSelectScript(${s.id})">
+        <div class="vo-script-title">${esc((s.script || '').slice(0, 60))}${s.script && s.script.length > 60 ? '…' : ''}</div>
+        <div class="vo-script-snippet">${esc(snippet)}${s.script && s.script.length > 140 ? '…' : ''}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">${dateStr} · ${s.script ? s.script.length : 0} chars</div>
+      </div>`;
+  }).join('');
+}
+
+function voSelectScript(scriptId) {
+  voState.selectedScript = voState.scripts.find(s => s.id === scriptId) || null;
+  document.querySelectorAll('#section-voiceovers .vo-script-card').forEach(c => {
+    c.classList.toggle('selected', Number(c.dataset.scriptId) === scriptId);
+  });
+}
+
+function voUpdateCharCount() {
+  const text = document.getElementById('vo-text').value || '';
+  const el = document.getElementById('vo-char-count');
+  el.textContent = `${text.length} / 5000 caracteres`;
+  el.classList.toggle('over', text.length > 5000);
+}
+
+async function voGenerate() {
+  if (!voState.product) return;
+
+  let body = {
+    voice_type: document.getElementById('vo-voice-select').value,
+    model_id:   document.getElementById('vo-model-select').value,
+  };
+
+  if (voState.source === 'script') {
+    if (!voState.selectedScript) { showToast('Selecciona un script primero'); return; }
+    body.script_id = voState.selectedScript.id;
+  } else {
+    const text = document.getElementById('vo-text').value.trim();
+    if (!text)            { showToast('Escribe el texto a sintetizar'); return; }
+    if (text.length > 5000) { showToast('El texto supera los 5000 caracteres permitidos'); return; }
+    body.text = text;
+  }
+
+  const btn = document.getElementById('vo-gen-btn');
+  const txt = document.getElementById('vo-gen-text');
+  btn.disabled = true;
+  txt.innerHTML = '<span class="vo-spinner"></span> Generando audio…';
+
+  try {
+    const r = await apiFetch('/voiceovers/' + voState.product.id + '/generate', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    if (!r || r.error) throw new Error(r && r.error || 'Error');
+    // Refresh
+    const fresh = await apiFetch('/voiceovers/' + voState.product.id);
+    if (fresh) { voState.voiceovers = fresh.voiceovers || []; voRenderSaved(); }
+    showToast('✓ Audio generado');
+  } catch (err) {
+    showToast('Error al generar: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    txt.textContent = '🎙️ Generar audio';
+  }
+}
+
+function voRenderSaved() {
+  const sec = document.getElementById('vo-saved-section');
+  const list = document.getElementById('vo-saved-list');
+  if (!voState.voiceovers || voState.voiceovers.length === 0) {
+    sec.style.display = 'none';
+    return;
+  }
+  sec.style.display = '';
+  list.innerHTML = voState.voiceovers.map(v => {
+    const sizeKb = v.file_size_bytes ? `${(v.file_size_bytes / 1024).toFixed(1)} KB` : '';
+    return `
+      <div class="vo-saved-item">
+        <div class="vo-saved-head">
+          <div>
+            <div class="vo-saved-voice">${esc(v.voice_name || v.voice_type || 'Voz')}</div>
+            <div class="vo-saved-meta">${esc(v.model_id || '')} · ${v.char_count} chars · ${sizeKb} · ${fmtDate(v.created_at)}</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <a href="${v.audio_url}" download class="vo-mini-btn vo-mini-btn-primary">⬇ MP3</a>
+            <button class="vo-mini-btn vo-mini-btn-danger" onclick="voDelete(${v.id})">✕</button>
+          </div>
+        </div>
+        <div class="vo-saved-text">${esc(v.text || '')}</div>
+        <audio controls preload="none" src="${v.audio_url}"></audio>
+      </div>`;
+  }).join('');
+}
+
+async function voDelete(vid) {
+  if (!voState.product) return;
+  if (!await confirmDelete({ title: '¿Eliminar este audio?', message: 'Se eliminará el archivo MP3 del servidor.' })) return;
+  const r = await apiFetch(`/voiceovers/${voState.product.id}/${vid}`, { method: 'DELETE' });
+  if (r && r.message) {
+    voState.voiceovers = voState.voiceovers.filter(v => v.id !== vid);
+    voRenderSaved();
+    showToast('Audio eliminado');
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════
    PRECIOS — Calculadora de Rentabilidad

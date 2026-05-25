@@ -45,7 +45,8 @@ app.use((req, res, next) => {
       req.path.startsWith('/landings') || req.path.startsWith('/mockups') ||
       req.path.startsWith('/logos') || req.path.startsWith('/text-to-image') ||
       req.path.startsWith('/ad-templates') || req.path.startsWith('/meta-ads') ||
-      req.path.startsWith('/ebooks') || req.path.startsWith('/ebook-images')) {
+      req.path.startsWith('/ebooks') || req.path.startsWith('/ebook-images') ||
+      req.path.startsWith('/voiceovers')) {
     return next();
   }
   if (STATIC_ALLOWLIST.has(req.path)) return next();
@@ -70,6 +71,7 @@ app.use('/ad-templates',  express.static(mediaDir('ad-templates')));
 app.use('/meta-ads',      express.static(mediaDir('meta-ads')));
 app.use('/ebooks',        express.static(mediaDir('ebooks')));
 app.use('/ebook-images',  express.static(mediaDir('ebook-images')));
+app.use('/voiceovers',    express.static(mediaDir('voiceovers')));
 
 // ── Routes ───────────────────────────────────────────────────────
 app.use('/api/auth',  require('./routes/auth'));
@@ -91,6 +93,7 @@ app.use('/api/meta-spy',     require('./routes/meta-spy'));
 app.use('/api/tiktok-spy',   require('./routes/tiktok-spy'));
 app.use('/api/my-templates', require('./routes/my-templates'));
 app.use('/api/ebooks',       require('./routes/ebooks'));
+app.use('/api/voiceovers',   require('./routes/voiceovers'));
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
