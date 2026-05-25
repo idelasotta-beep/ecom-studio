@@ -6661,30 +6661,8 @@ html.light .api-input { background:#f8fafc; }
     <button class="lng-asmv-close-x" onclick="lngAsmvClose()" title="Cerrar">✕</button>
     <div class="lng-asmv-box">
 
-      <!-- LEFT SIDEBAR — downloads + publish + delete -->
+      <!-- LEFT SIDEBAR — publish + delete -->
       <aside class="lng-asmv-side-l">
-        <div class="lng-asmv-group">
-          <div class="lng-asmv-group-title">Descargar landing completa</div>
-          <button class="lng-asmv-act" onclick="lngAsmvDownload('full','png')">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            PNG en 2K
-          </button>
-          <button class="lng-asmv-act" onclick="lngAsmvDownload('full','webp')">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            WebP optimizada
-          </button>
-        </div>
-        <div class="lng-asmv-group">
-          <div class="lng-asmv-group-title">Descargar landing por secciones</div>
-          <button class="lng-asmv-act" onclick="lngAsmvDownload('sections','png')">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            PNG en 2K
-          </button>
-          <button class="lng-asmv-act" onclick="lngAsmvDownload('sections','webp')">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            WebP optimizada
-          </button>
-        </div>
         <div class="lng-asmv-group">
           <div class="lng-asmv-group-title">Publicación</div>
           <button class="lng-asmv-act shopify" onclick="lngAsmvSendShopify()">
@@ -16654,11 +16632,6 @@ async function lngAsmvDeleteLanding() {
   showToast('Landing ensamblada eliminada');
 }
 
-function lngAsmvDownload(scope, format) {
-  // scope: 'full' | 'sections', format: 'png' | 'webp'
-  showToast('La descarga de landings ensambladas estará disponible próximamente.');
-}
-
 /* ── Send to Shopify — 3-step wizard ────────────────────────────────
    State machine:
      1 = pick store         (auto-skipped if user has only 1 store)
@@ -17872,7 +17845,8 @@ function lngActDownload2K() {
 function lngActDownloadOptimized() {
   if (!lngCurrentViewAsset) return;
   const meta = LNG_KIND_LABEL[lngCurrentViewAsset.kind] || LNG_KIND_LABEL.ad;
-  // Re-encode through a canvas to a smaller JPEG (web-optimized).
+  // Re-encode through a canvas to a smaller WebP (web-optimized — mejor compresión
+  // que JPEG conservando calidad y soporta transparencia).
   const img = new Image();
   img.crossOrigin = 'anonymous';
   img.onload = () => {
@@ -17885,17 +17859,23 @@ function lngActDownloadOptimized() {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0, w, h);
     canvas.toBlob(blob => {
+      // En el raro caso de un browser sin soporte WebP, blob viene null → fallback al original
+      if (!blob) {
+        lngDownloadUrl(lngCurrentViewAsset.image_url, `${meta.file}_${lngCurrentViewAsset.id}.png`);
+        showToast('Tu navegador no soporta WebP — descargando original PNG');
+        return;
+      }
       const url = URL.createObjectURL(blob);
-      lngDownloadUrl(url, `${meta.file}_optimizado_${lngCurrentViewAsset.id}.jpg`);
+      lngDownloadUrl(url, `${meta.file}_optimizado_${lngCurrentViewAsset.id}.webp`);
       setTimeout(() => URL.revokeObjectURL(url), 3000);
-    }, 'image/jpeg', 0.85);
+    }, 'image/webp', 0.85);
   };
   img.onerror = () => {
     // Fallback: download original
     lngDownloadUrl(lngCurrentViewAsset.image_url, `${meta.file}_${lngCurrentViewAsset.id}.png`);
   };
   img.src = lngCurrentViewAsset.image_url;
-  showToast('Optimizando para web...');
+  showToast('Optimizando para web (WebP)...');
 }
 
 /* ── Edit panel ── */
