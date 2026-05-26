@@ -44,10 +44,29 @@ router.get('/users/:id', (req, res) => {
 });
 
 // ── PUT /api/admin/users/:id ─────────────────────────────────────
+const ALLOWED_ROLES = ['user', 'admin'];
+
 router.put('/users/:id', (req, res) => {
   const { first_name, last_name, email, country, phone, role, plan, is_active } = req.body;
-  const user = users.one({ id: Number(req.params.id) });
+  const targetId = Number(req.params.id);
+  const user = users.one({ id: targetId });
   if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+  const isSelf = targetId === req.user.id;
+
+  // Validar role contra enum cerrado
+  if (role !== undefined && !ALLOWED_ROLES.includes(role)) {
+    return res.status(400).json({ error: `Role inválido. Permitidos: ${ALLOWED_ROLES.join(', ')}` });
+  }
+  // No permitir auto-degradación / auto-desactivación — bloquearía el panel para
+  // este admin y, si es el único admin del sistema, deja al producto sin acceso
+  // admin (seedAdmin sólo corre si NO existe ningún admin).
+  if (isSelf && role !== undefined && role !== user.role) {
+    return res.status(400).json({ error: 'No puedes cambiar tu propio role. Pídeselo a otro admin.' });
+  }
+  if (isSelf && is_active !== undefined && Number(is_active) === 0) {
+    return res.status(400).json({ error: 'No puedes desactivarte a ti mismo.' });
+  }
 
   const changes = {};
   if (first_name !== undefined) changes.first_name = first_name;
@@ -59,7 +78,7 @@ router.put('/users/:id', (req, res) => {
   if (plan       !== undefined) changes.plan       = plan;
   if (is_active  !== undefined) changes.is_active  = Number(is_active);
 
-  users.update(req.params.id, changes);
+  users.update(targetId, changes);
   res.json({ message: 'Usuario actualizado' });
 });
 
@@ -135,13 +154,22 @@ router.post('/ad-templates', (req, res) => {
   const items = Array.isArray(images) && images.length ? images : (image ? [image] : []);
   if (!items.length) return res.status(400).json({ error: 'Falta la imagen' });
 
+  // Whitelist de extensiones aceptadas. Bloquea explícitamente svg/svg+xml/xml
+  // porque al servirlos como estáticos el browser los renderiza como
+  // image/svg+xml y ejecuta el <script> embebido (stored XSS en el origen).
+  const ALLOWED_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp']);
+
   const created = [];
   const errors = [];
   for (let i = 0; i < items.length; i++) {
     const dataUrl = items[i];
     const match = typeof dataUrl === 'string' && dataUrl.match(/^data:image\/(\w+);base64,/);
     if (!match) { errors.push({ index: i, error: 'Formato de imagen inválido' }); continue; }
-    const ext      = match[1];
+    const ext = match[1].toLowerCase();
+    if (!ALLOWED_EXTS.has(ext)) {
+      errors.push({ index: i, error: `Formato no permitido (${ext}). Sólo PNG, JPG, GIF y WebP.` });
+      continue;
+    }
     const base64   = dataUrl.replace(/^data:image\/\w+;base64,/, '');
     const filename = `tpl_${Date.now()}_${i}.${ext}`;
     try {

@@ -36,7 +36,9 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // ── Block sensitive paths from being served as static files ──────
 // Without this, the backend folder, DB file, secrets, and config are all exposed.
-const BLOCKED_PATTERN = /^\/(?:server\b|\.|node_modules\b)|\.(?:env|bak|log|json|lock|md)$/i;
+// La extensión `.js` y el directorio `scripts/` se bloquean también para no
+// exponer scripts server-side (ej. migrate-to-railway.js) por static.
+const BLOCKED_PATTERN = /^\/(?:server\b|\.|node_modules\b|scripts\b)|\.(?:env|bak|log|json|lock|md|js|cjs|mjs|ts|sh)$/i;
 const STATIC_ALLOWLIST = new Set([
   '/index.html', '/login.html', '/register.html', '/dashboard.html', '/admin.html',
 ]);
