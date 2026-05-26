@@ -20,6 +20,13 @@ const MODELS = {
   'gemini-3.1-flash-lite':     { provider: 'google',    label: 'Gemini 3.1 Flash Lite',    key_field: 'gemini_key' },
   'gemini-2.5-pro':            { provider: 'google',    label: 'Gemini 2.5 Pro',           key_field: 'gemini_key' },
   'gemini-2.5-flash':          { provider: 'google',    label: 'Gemini 2.5 Flash',         key_field: 'gemini_key' },
+  // Kie.ai 2026 frontier
+  'kie:claude-opus-4-7':        { provider: 'kie',      label: 'Claude Opus 4.7 (Kie.ai)',    key_field: 'kieai_key' },
+  'kie:claude-sonnet-4-6':      { provider: 'kie',      label: 'Claude Sonnet 4.6 (Kie.ai)',  key_field: 'kieai_key' },
+  'kie:gpt-5-5':                { provider: 'kie',      label: 'GPT-5.5 (Kie.ai)',            key_field: 'kieai_key' },
+  'kie:gemini-3.1-pro-preview': { provider: 'kie',      label: 'Gemini 3.1 Pro (Kie.ai)',     key_field: 'kieai_key' },
+  'kie:gemini-3-flash-preview': { provider: 'kie',      label: 'Gemini 3 Flash (Kie.ai)',     key_field: 'kieai_key' },
+  // Kie.ai legacy
   'kie:gpt-5-2':               { provider: 'kie',       label: 'GPT-5.2 (Kie.ai)',           key_field: 'kieai_key' },
   'kie:claude-sonnet-4-5':     { provider: 'kie',       label: 'Claude Sonnet 4.5 (Kie.ai)', key_field: 'kieai_key' },
   'kie:gemini-2.5-pro':        { provider: 'kie',       label: 'Gemini 2.5 Pro (Kie.ai)',    key_field: 'kieai_key' },
