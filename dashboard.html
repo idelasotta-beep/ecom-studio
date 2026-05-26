@@ -5369,51 +5369,87 @@ html.light .api-input { background:#f8fafc; }
           <span class="ang-detail-prod" id="vo-detail-prod-name">Producto</span>
         </div>
 
-        <span class="vo-pill">GENERADOR DE AUDIO</span>
-        <h2 style="font-size:20px;font-weight:700;margin:10px 0 4px">Genera tu audio</h2>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:18px">Elige el origen del texto (un script existente o uno libre), una voz y el modelo de ElevenLabs.</p>
+        <!-- Mode tabs (Generar con IA vs Subir archivo) -->
+        <div class="vo-source-tabs" style="margin-bottom:14px">
+          <button class="vo-source-tab active" data-mode="generate" onclick="voSelectMode('generate')">🎙️ Generar con IA</button>
+          <button class="vo-source-tab" data-mode="upload" onclick="voSelectMode('upload')">📤 Subir archivo</button>
+        </div>
 
-        <div class="ang-form-card">
-          <!-- Source tabs -->
-          <div class="vo-form-block">
-            <label class="vo-label">Origen del texto</label>
-            <div class="vo-source-tabs">
-              <button class="vo-source-tab active" data-source="script" onclick="voSelectSource('script')">📜 Desde script</button>
-              <button class="vo-source-tab" data-source="free" onclick="voSelectSource('free')">✍ Texto libre</button>
+        <!-- ─── Modo: Generar con IA ─── -->
+        <div id="vo-mode-generate">
+          <span class="vo-pill">GENERADOR DE AUDIO</span>
+          <h2 style="font-size:20px;font-weight:700;margin:10px 0 4px">Genera tu audio</h2>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:18px">Elige el origen del texto (un script existente o uno libre), una voz y el modelo de ElevenLabs.</p>
+
+          <div class="ang-form-card">
+            <!-- Source tabs -->
+            <div class="vo-form-block">
+              <label class="vo-label">Origen del texto</label>
+              <div class="vo-source-tabs">
+                <button class="vo-source-tab active" data-source="script" onclick="voSelectSource('script')">📜 Desde script</button>
+                <button class="vo-source-tab" data-source="free" onclick="voSelectSource('free')">✍ Texto libre</button>
+              </div>
             </div>
-          </div>
 
-          <!-- Source: script list -->
-          <div class="vo-form-block" id="vo-source-script">
-            <label class="vo-label">Selecciona un script generado</label>
-            <div id="vo-script-list">
-              <div style="font-size:12px;color:var(--muted)">Sin scripts. Genera uno en la sección <strong style="color:var(--text2)">Scripts de Audios</strong> o usa "Texto libre".</div>
+            <!-- Source: script list -->
+            <div class="vo-form-block" id="vo-source-script">
+              <label class="vo-label">Selecciona un script generado</label>
+              <div id="vo-script-list">
+                <div style="font-size:12px;color:var(--muted)">Sin scripts. Genera uno en la sección <strong style="color:var(--text2)">Scripts de Audios</strong> o usa "Texto libre".</div>
+              </div>
             </div>
-          </div>
 
-          <!-- Source: free text -->
-          <div class="vo-form-block" id="vo-source-free" style="display:none">
-            <label class="vo-label">Escribe el texto a sintetizar</label>
-            <textarea id="vo-text" class="vo-textarea" placeholder="Escribe acá el texto que quieres convertir a audio..." oninput="voUpdateCharCount()"></textarea>
-            <div class="vo-char-count" id="vo-char-count">0 / 5000 caracteres</div>
-          </div>
-
-          <!-- Voice + model -->
-          <div class="vo-form-block vo-row2">
-            <div>
-              <label class="vo-label">Tipo de voz</label>
-              <select id="vo-voice-select" class="vo-field"></select>
-              <div id="vo-voice-desc" class="vo-char-count" style="text-align:left;color:var(--muted);font-size:11px"></div>
+            <!-- Source: free text -->
+            <div class="vo-form-block" id="vo-source-free" style="display:none">
+              <label class="vo-label">Escribe el texto a sintetizar</label>
+              <textarea id="vo-text" class="vo-textarea" placeholder="Escribe acá el texto que quieres convertir a audio..." oninput="voUpdateCharCount()"></textarea>
+              <div class="vo-char-count" id="vo-char-count">0 / 5000 caracteres</div>
             </div>
-            <div>
-              <label class="vo-label">Modelo de ElevenLabs</label>
-              <select id="vo-model-select" class="vo-field"></select>
-            </div>
-          </div>
 
-          <button class="vo-gen-btn" id="vo-gen-btn" onclick="voGenerate()">
-            <span id="vo-gen-text">🎙️ Generar audio</span>
-          </button>
+            <!-- Voice + model -->
+            <div class="vo-form-block vo-row2">
+              <div>
+                <label class="vo-label">Tipo de voz</label>
+                <select id="vo-voice-select" class="vo-field"></select>
+                <div id="vo-voice-desc" class="vo-char-count" style="text-align:left;color:var(--muted);font-size:11px"></div>
+              </div>
+              <div>
+                <label class="vo-label">Modelo de ElevenLabs</label>
+                <select id="vo-model-select" class="vo-field"></select>
+              </div>
+            </div>
+
+            <button class="vo-gen-btn" id="vo-gen-btn" onclick="voGenerate()">
+              <span id="vo-gen-text">🎙️ Generar audio</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ─── Modo: Subir archivo ─── -->
+        <div id="vo-mode-upload" style="display:none">
+          <span class="vo-pill">SUBIR AUDIO EXTERNO</span>
+          <h2 style="font-size:20px;font-weight:700;margin:10px 0 4px">Sube un audio externo</h2>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:18px">Adjunta un audio MP3 / WAV / M4A / OGG asociado a un ángulo de venta de este producto.</p>
+
+          <div class="ang-form-card">
+            <!-- Selector de ángulo -->
+            <div class="vo-form-block">
+              <label class="vo-label">Ángulo de venta</label>
+              <select id="vo-upload-angle" class="vo-field"><option>Cargando ángulos…</option></select>
+              <div id="vo-upload-angle-hint" class="vo-char-count" style="text-align:left;color:var(--muted);font-size:11px;display:none"></div>
+            </div>
+
+            <!-- File input -->
+            <div class="vo-form-block">
+              <label class="vo-label">Archivo de audio</label>
+              <input type="file" id="vo-upload-file" accept="audio/mpeg,audio/wav,audio/mp4,audio/m4a,audio/ogg,audio/x-m4a,.mp3,.wav,.m4a,.ogg" onchange="voOnFileChange()" style="width:100%;padding:11px;background:var(--card2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit">
+              <div id="vo-upload-info" class="vo-char-count" style="text-align:left;color:var(--muted);font-size:11px;display:none"></div>
+            </div>
+
+            <button class="vo-gen-btn" id="vo-upload-btn" onclick="voUpload()" disabled>
+              <span id="vo-upload-text">📤 Subir audio</span>
+            </button>
+          </div>
         </div>
 
         <!-- Listado de audios generados -->
@@ -10164,8 +10200,11 @@ const voState = {
   models:         {},
   scripts:        [],
   voiceovers:     [],
+  angles:         [],   // [{uid, num, title, avatar}, ...] — sólo para modo upload
+  mode:           'generate',  // 'generate' | 'upload'
   source:         'script',
   selectedScript: null,
+  uploadFile:     null, // { dataUrl, name, sizeBytes }
 };
 
 async function voLoad() {
@@ -10216,9 +10255,14 @@ async function voOpenDetail(productId) {
   voState.product = null;
   voState.scripts = [];
   voState.voiceovers = [];
+  voState.angles = [];
   voState.source = 'script';
   voState.selectedScript = null;
+  voState.uploadFile = null;
   document.getElementById('vo-text').value = '';
+  document.getElementById('vo-upload-file').value = '';
+  document.getElementById('vo-upload-info').style.display = 'none';
+  document.getElementById('vo-upload-btn').disabled = true;
   voUpdateCharCount();
 
   const data = await apiFetch('/voiceovers/' + productId);
@@ -10226,14 +10270,44 @@ async function voOpenDetail(productId) {
   voState.product    = data.product;
   voState.scripts    = data.scripts    || [];
   voState.voiceovers = data.voiceovers || [];
+  voState.angles     = data.angles     || [];
   document.getElementById('vo-detail-prod-name').textContent = voState.product.name;
 
   voPopulateVoiceSelect();
   voPopulateModelSelect();
+  voPopulateAngleSelect();
   voRenderScripts();
   voSelectSource(voState.scripts.length ? 'script' : 'free');
+  voSelectMode('generate');
   voRenderSaved();
   document.getElementById('vo-scroll').scrollTop = 0;
+}
+
+function voSelectMode(mode) {
+  voState.mode = mode;
+  // Mode tabs viven al tope del detail (vo-source-tabs con data-mode)
+  document.querySelectorAll('#section-voiceovers [data-mode]').forEach(t => {
+    t.classList.toggle('active', t.dataset.mode === mode);
+  });
+  document.getElementById('vo-mode-generate').style.display = (mode === 'generate') ? '' : 'none';
+  document.getElementById('vo-mode-upload').style.display   = (mode === 'upload')   ? '' : 'none';
+}
+
+function voPopulateAngleSelect() {
+  const sel = document.getElementById('vo-upload-angle');
+  const hint = document.getElementById('vo-upload-angle-hint');
+  if (!voState.angles.length) {
+    sel.innerHTML = '<option value="">Este producto no tiene ángulos de venta generados</option>';
+    sel.disabled = true;
+    hint.textContent = 'Genera ángulos primero en la sección "Ángulos de Ventas" para asociarlos al audio.';
+    hint.style.display = '';
+    return;
+  }
+  sel.disabled = false;
+  hint.style.display = 'none';
+  sel.innerHTML = voState.angles.map(a =>
+    `<option value="${a.uid}">${a.num}. ${esc(a.title)}</option>`
+  ).join('');
 }
 
 function voShowList() {
@@ -10267,7 +10341,7 @@ function voPopulateModelSelect() {
 
 function voSelectSource(source) {
   voState.source = source;
-  document.querySelectorAll('#section-voiceovers .vo-source-tab').forEach(t => {
+  document.querySelectorAll('#section-voiceovers [data-source]').forEach(t => {
     t.classList.toggle('active', t.dataset.source === source);
   });
   document.getElementById('vo-source-script').style.display = (source === 'script') ? '' : 'none';
@@ -10357,22 +10431,116 @@ function voRenderSaved() {
   sec.style.display = '';
   list.innerHTML = voState.voiceovers.map(v => {
     const sizeKb = v.file_size_bytes ? `${(v.file_size_bytes / 1024).toFixed(1)} KB` : '';
+    const isUpload = v.source_type === 'uploaded';
+    const title = isUpload
+      ? `📤 ${esc(v.original_filename || 'Audio subido')}`
+      : `🎙️ ${esc(v.voice_name || v.voice_type || 'Voz')}`;
+    const metaParts = [];
+    if (isUpload) {
+      metaParts.push((v.audio_format || 'audio').toUpperCase());
+    } else {
+      if (v.model_id) metaParts.push(esc(v.model_id));
+      if (v.char_count) metaParts.push(`${v.char_count} chars`);
+    }
+    if (sizeKb) metaParts.push(sizeKb);
+    metaParts.push(fmtDate(v.created_at));
+    const angleBadge = v.angle_ref
+      ? `<span style="display:inline-block;background:rgba(139,92,246,.12);color:#a78bfa;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;margin-top:4px">🎯 ${esc(v.angle_ref)}</span>`
+      : '';
+    const textBlock = !isUpload && v.text
+      ? `<div class="vo-saved-text">${esc(v.text)}</div>`
+      : '';
+    const ext = (v.audio_format || 'mp3').toUpperCase();
     return `
       <div class="vo-saved-item">
         <div class="vo-saved-head">
           <div>
-            <div class="vo-saved-voice">${esc(v.voice_name || v.voice_type || 'Voz')}</div>
-            <div class="vo-saved-meta">${esc(v.model_id || '')} · ${v.char_count} chars · ${sizeKb} · ${fmtDate(v.created_at)}</div>
+            <div class="vo-saved-voice">${title}</div>
+            <div class="vo-saved-meta">${metaParts.join(' · ')}</div>
+            ${angleBadge}
           </div>
           <div style="display:flex;gap:6px">
-            <a href="${v.audio_url}" download class="vo-mini-btn vo-mini-btn-primary">⬇ MP3</a>
+            <a href="${v.audio_url}" download class="vo-mini-btn vo-mini-btn-primary">⬇ ${ext}</a>
             <button class="vo-mini-btn vo-mini-btn-danger" onclick="voDelete(${v.id})">✕</button>
           </div>
         </div>
-        <div class="vo-saved-text">${esc(v.text || '')}</div>
+        ${textBlock}
         <audio controls preload="none" src="${v.audio_url}"></audio>
       </div>`;
   }).join('');
+}
+
+// ─── Upload de archivo externo ───
+function voOnFileChange() {
+  const input = document.getElementById('vo-upload-file');
+  const info = document.getElementById('vo-upload-info');
+  const btn = document.getElementById('vo-upload-btn');
+  voState.uploadFile = null;
+  btn.disabled = true;
+  info.style.display = 'none';
+  const f = input.files && input.files[0];
+  if (!f) return;
+
+  // Validar tamaño 25 MB (más generoso para WAV)
+  const MAX_BYTES = 50 * 1024 * 1024;
+  if (f.size > MAX_BYTES) {
+    info.textContent = `Archivo demasiado grande (${(f.size / 1024 / 1024).toFixed(1)} MB). Máximo 50 MB.`;
+    info.style.color = '#f87171';
+    info.style.display = '';
+    return;
+  }
+
+  // Leer como dataURL
+  const reader = new FileReader();
+  reader.onload = () => {
+    voState.uploadFile = { dataUrl: reader.result, name: f.name, sizeBytes: f.size };
+    info.textContent = `${f.name} · ${(f.size / 1024 / 1024).toFixed(2)} MB · ${f.type || 'audio'}`;
+    info.style.color = 'var(--muted)';
+    info.style.display = '';
+    btn.disabled = !voState.angles.length;
+  };
+  reader.onerror = () => {
+    info.textContent = 'No se pudo leer el archivo';
+    info.style.color = '#f87171';
+    info.style.display = '';
+  };
+  reader.readAsDataURL(f);
+}
+
+async function voUpload() {
+  if (!voState.product || !voState.uploadFile) return;
+  const angleUid = document.getElementById('vo-upload-angle').value;
+  if (!angleUid) { showToast('Selecciona un ángulo de venta'); return; }
+
+  const btn = document.getElementById('vo-upload-btn');
+  const txt = document.getElementById('vo-upload-text');
+  btn.disabled = true;
+  txt.innerHTML = '<span class="vo-spinner"></span> Subiendo…';
+
+  try {
+    const r = await apiFetch('/voiceovers/' + voState.product.id + '/upload', {
+      method: 'POST',
+      body: JSON.stringify({
+        audio_data_url:    voState.uploadFile.dataUrl,
+        original_filename: voState.uploadFile.name,
+        angle_uid:         angleUid,
+      }),
+    });
+    if (!r || r.error) throw new Error(r && r.error || 'Error');
+    // Refresh
+    const fresh = await apiFetch('/voiceovers/' + voState.product.id);
+    if (fresh) { voState.voiceovers = fresh.voiceovers || []; voRenderSaved(); }
+    // Reset upload form
+    document.getElementById('vo-upload-file').value = '';
+    document.getElementById('vo-upload-info').style.display = 'none';
+    voState.uploadFile = null;
+    showToast('✓ Audio subido');
+  } catch (err) {
+    showToast('Error al subir: ' + err.message);
+  } finally {
+    btn.disabled = !voState.uploadFile;
+    txt.textContent = '📤 Subir audio';
+  }
 }
 
 async function voDelete(vid) {

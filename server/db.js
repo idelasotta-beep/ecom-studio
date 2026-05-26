@@ -550,13 +550,18 @@ const product_voiceovers = {
       id,
       user_id:          data.user_id,
       product_id:       data.product_id,
+      source_type:      data.source_type || 'generated',   // 'generated' | 'uploaded'
       source_script_id: data.source_script_id || null,
+      angle_ref:        data.angle_ref || null,             // título del ángulo de venta asociado
+      angle_data:       data.angle_data || null,            // snapshot del ángulo (num/avatar/problem/solution)
       text:             data.text || '',
       voice_type:       data.voice_type || null,
       voice_id:         data.voice_id || null,
       voice_name:       data.voice_name || null,
       model_id:         data.model_id || null,
       audio_path:       data.audio_path,
+      audio_format:     data.audio_format || 'mp3',        // mp3 | wav | m4a | ogg
+      original_filename: data.original_filename || null,    // nombre original del archivo subido
       char_count:       data.char_count || 0,
       file_size_bytes:  data.file_size_bytes || 0,
       created_at:       now(),
