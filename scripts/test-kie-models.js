@@ -21,6 +21,7 @@ if (!KIE_API_KEY) {
 const DEFAULT_MODELS = [
   'kie:claude-opus-4-7',
   'kie:claude-sonnet-4-6',
+  'kie:gpt-5-2',
   'kie:gemini-3.1-pro',
   'kie:gemini-3-pro',
 ];
