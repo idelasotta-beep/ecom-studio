@@ -27,9 +27,8 @@ const MODELS = {
   // Kie.ai 2026 frontier — sólo modelos en formato Chat Completions / Messages.
   'kie:claude-opus-4-7':       { provider: 'kie', label: 'Claude Opus 4.7 (Kie.ai)',     key_field: 'kieai_key' },
   'kie:claude-sonnet-4-6':     { provider: 'kie', label: 'Claude Sonnet 4.6 (Kie.ai)',   key_field: 'kieai_key' },
-  'kie:gpt-5-5':               { provider: 'kie', label: 'GPT-5.5 (Kie.ai)',             key_field: 'kieai_key' },
-  'kie:gemini-3.1-pro-preview':{ provider: 'kie', label: 'Gemini 3.1 Pro (Kie.ai)',      key_field: 'kieai_key' },
-  'kie:gemini-3-flash-preview':{ provider: 'kie', label: 'Gemini 3 Flash (Kie.ai)',      key_field: 'kieai_key' },
+  'kie:gemini-3.1-pro':        { provider: 'kie', label: 'Gemini 3.1 Pro (Kie.ai)',      key_field: 'kieai_key' },
+  'kie:gemini-3-pro':          { provider: 'kie', label: 'Gemini 3 Pro (Kie.ai)',        key_field: 'kieai_key' },
   // Kie.ai legacy
   'kie:gpt-5-2':              { provider: 'kie', label: 'GPT-5.2 (Kie.ai)',              key_field: 'kieai_key' },
   'kie:claude-sonnet-4-5':    { provider: 'kie', label: 'Claude Sonnet 4.5 (Kie.ai)',    key_field: 'kieai_key' },
