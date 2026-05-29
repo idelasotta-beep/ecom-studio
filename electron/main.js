@@ -51,6 +51,27 @@ function copyRecursiveSync(src, dest) {
 // require dispara app.listen() en server.js.
 require(path.join(__dirname, '..', 'server', 'server.js'));
 
+// ── Autologin: firmar JWT del admin para inyectar en localStorage ─
+// JWT_SECRET es efímero por sesión (no hay env var JWT_SECRET en desktop),
+// así que el token vale solo mientras esté abierta esta instancia.
+let injectedToken = null;
+let injectedUser  = null;
+try {
+  const { users } = require(path.join(__dirname, '..', 'server', 'db'));
+  const { JWT_SECRET } = require(path.join(__dirname, '..', 'server', 'middleware', 'auth'));
+  const jwt = require('jsonwebtoken');
+  const admin = users.one({ role: 'admin' });
+  if (admin) {
+    injectedToken = jwt.sign({ id: admin.id }, JWT_SECRET, { expiresIn: '30d' });
+    const { password: _pw, ...adminSafe } = admin;
+    injectedUser = JSON.stringify(adminSafe);
+  } else {
+    console.warn('[electron] no hay admin en la DB — la app abrirá login.html');
+  }
+} catch (err) {
+  console.error('[electron] no se pudo firmar el token de autologin:', err.message);
+}
+
 function waitForServer(timeoutMs = 15000) {
   const started = Date.now();
   return new Promise((resolve, reject) => {
@@ -74,6 +95,10 @@ function waitForServer(timeoutMs = 15000) {
 async function createWindow() {
   await waitForServer();
 
+  const additionalArguments = [];
+  if (injectedToken) additionalArguments.push(`--injected-token=${injectedToken}`);
+  if (injectedUser)  additionalArguments.push(`--injected-user=${encodeURIComponent(injectedUser)}`);
+
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -85,6 +110,7 @@ async function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      additionalArguments,
     },
   });
 
@@ -95,7 +121,9 @@ async function createWindow() {
     return { action: 'deny' };
   });
 
-  await win.loadURL(`http://127.0.0.1:${PORT}/login.html`);
+  // Si hay autologin, salta directo al dashboard. Si no, pasa por login.html.
+  const landing = injectedToken ? 'dashboard.html' : 'login.html';
+  await win.loadURL(`http://127.0.0.1:${PORT}/${landing}`);
 }
 
 app.whenReady().then(createWindow).catch((err) => {
