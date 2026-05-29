@@ -100,24 +100,6 @@ app.use('/api/voiceovers',   require('./routes/voiceovers'));
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
-// ── TEMPORAL — Fase 0 del cutover a Electron ────────────────────
-// Stream-ea /data (o ROOT en dev) como tar.gz para poder bajar todo
-// antes de retirar Railway. Borrar este bloque (junto con el commit
-// que lo agregó) en cuanto se descargue el archivo.
-const EXPORT_TOKEN_TEMP = '45fb06771b7b0aa83969fb075f263f66db03b67bb52e8701';
-app.get('/api/_export-volume', (req, res) => {
-  if (req.query.t !== EXPORT_TOKEN_TEMP) return res.status(403).send('nope');
-  const { spawn } = require('child_process');
-  const { ROOT } = require('./lib/paths');
-  res.setHeader('Content-Type', 'application/gzip');
-  res.setHeader('Content-Disposition', 'attachment; filename="railway-export.tar.gz"');
-  const tar = spawn('tar', ['-czf', '-', '-C', ROOT, '.']);
-  tar.stdout.pipe(res);
-  tar.stderr.on('data', (d) => console.error('[export] tar:', d.toString().slice(0, 200)));
-  tar.on('error', (err) => { console.error('[export] spawn error:', err); if (!res.headersSent) res.status(500).end(); });
-  tar.on('close', (code) => { if (code !== 0) console.error('[export] tar exited with code', code); });
-});
-
 // Fallback: serve index.html for unknown routes
 app.get('*', (req, res) => {
   if (!req.path.startsWith('/api')) {
