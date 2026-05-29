@@ -1,14 +1,25 @@
 /**
  * Single source of truth for media/data directories.
  *
- * In Railway, set PERSISTENT_DATA_DIR=/data (matching the mounted Volume) so
- * uploads survive redeploys. Locally, leave it unset and we fall back to the
- * project's server/ directory, preserving the old dev-time layout.
+ * Resolución del ROOT, en orden:
+ *   1. Electron main process → app.getPath('userData') (single-user desktop).
+ *   2. PERSISTENT_DATA_DIR env var → para Railway (Volume montado en /data).
+ *   3. Fallback dev → el directorio server/ del propio repo.
  */
 const fs   = require('fs');
 const path = require('path');
 
-const ROOT = process.env.PERSISTENT_DATA_DIR || path.join(__dirname, '..');
+function resolveRoot() {
+  if (process.versions.electron && process.type === 'browser') {
+    try {
+      return require('electron').app.getPath('userData');
+    } catch (_) { /* electron app no disponible aún — caer al fallback */ }
+  }
+  if (process.env.PERSISTENT_DATA_DIR) return process.env.PERSISTENT_DATA_DIR;
+  return path.join(__dirname, '..');
+}
+
+const ROOT = resolveRoot();
 
 function mediaDir(name) {
   const dir = path.join(ROOT, name);
